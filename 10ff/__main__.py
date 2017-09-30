@@ -49,8 +49,11 @@ def divide_lines(words):
 
 
 class RawTerminal:
-    def __init__(self):
+    def __init__(self, loop):
         self._fd = sys.stdin.fileno()
+        self._loop = loop
+        self.input_queue = asyncio.Queue(loop=loop)
+        loop.add_reader(sys.stdin, self._got_input)
 
     def enable(self):
         self._old_settings = termios.tcgetattr(self._fd)
@@ -58,6 +61,10 @@ class RawTerminal:
 
     def disable(self):
         termios.tcsetattr(self._fd, termios.TCSADRAIN, self._old_settings)
+
+    def _got_input(self):
+        asyncio.ensure_future(
+            self.input_queue.put(sys.stdin.read(1)), loop=self._loop)
 
 
 class GameState:
@@ -80,7 +87,7 @@ class GameState:
         for i, (low, high) in enumerate(self.line_boundaries):
             if self.current_word in range(low, high):
                 return i
-        assert False, 'Word out of bounds'
+        return len(self.line_boundaries) - 1
 
     @property
     def shown_line_boundaries(self):
@@ -204,11 +211,8 @@ class Game:
 
         self._loop = loop
         self._text = [random.choice(corpus) for _ in range(SAMPLE_SIZE)]
-        self._raw_terminal = RawTerminal()
+        self._raw_terminal = RawTerminal(loop)
         self._raw_terminal.enable()
-
-        self._queue = asyncio.Queue(loop=self._loop)
-        self._loop.add_reader(sys.stdin, self._got_input)
 
     async def run(self):
         state = GameState(self._text)
@@ -220,18 +224,21 @@ class Game:
                 self._raw_terminal.disable()
                 state.render()
                 self._raw_terminal.enable()
+            await self._raw_terminal.input_queue.put(None)
 
-        timer_started = False
+        timer_future = None
 
         while not state.game_over:
             self._raw_terminal.disable()
             state.render()
             self._raw_terminal.enable()
-            key = await self._queue.get()
+            key = await self._raw_terminal.input_queue.get()
 
-            if not timer_started:
-                asyncio.ensure_future(timer(), loop=self._loop)
-                timer_started = True
+            if key is None:
+                break
+
+            if not timer_future:
+                timer_future = asyncio.ensure_future(timer(), loop=self._loop)
 
             if key == '\x03':
                 break
@@ -242,12 +249,9 @@ class Game:
             else:
                 state.key_pressed(key)
 
+        await timer_future
         self._raw_terminal.disable()
         state.render_stats()
-
-    def _got_input(self):
-        asyncio.ensure_future(
-            self._queue.put(sys.stdin.read(1)), loop=self._loop)
 
 
 async def main(loop):
