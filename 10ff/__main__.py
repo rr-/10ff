@@ -135,10 +135,9 @@ class GameState:
         self.status[self.current_word] = STATUS_TYPING
 
     def tick(self):
+        self.time_left -= 1
         if self.time_left == 0:
             self.game_over = True
-        else:
-            self.time_left -= 1
 
 
 class Game:
