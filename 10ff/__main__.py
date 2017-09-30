@@ -147,8 +147,8 @@ class GameState:
 
         sys.stdout.write('\x1B[999D\x1B[K')
 
-        print(f'CPS (chars per second): {cps}')
-        print(f'WPM (words per minute): {wpm}')
+        print(f'CPS (chars per second): {cps:.1f}')
+        print(f'WPM (words per minute): {wpm:.1f}')
 
         print(f'Keys pressed:           {total_keystrokes} (', end='')
         sys.stdout.write('\x1B[32;1m')
@@ -159,7 +159,7 @@ class GameState:
         print(')')
 
         print(f'Total keys pressed:     {self.total_keys_pressed}')
-        print(f'Accurracy:              {accurracy:.02%}')
+        print(f'Accurracy:              {accurracy:.1%}')
 
         print(r'Correct words:          ', end='')
         sys.stdout.write('\x1B[32;1m')
