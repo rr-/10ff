@@ -168,13 +168,17 @@ class Game:
                 state.render()
                 self._raw_terminal.enable()
 
-        asyncio.ensure_future(timer(), loop=self._loop)
+        timer_started = False
 
         while not state.game_over:
             self._raw_terminal.disable()
             state.render()
             self._raw_terminal.enable()
             key = await self._queue.get()
+
+            if not timer_started:
+                asyncio.ensure_future(timer(), loop=self._loop)
+                timer_started = True
 
             if key == '\x03':
                 break
