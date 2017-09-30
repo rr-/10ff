@@ -288,13 +288,13 @@ class Game:
         state.render_stats()
 
 
-async def main(loop):
+def main():
+    loop = asyncio.get_event_loop()
     args = parse_args()
     game = Game(loop, args)
-    await game.run()
+    loop.run_until_complete(game.run())
+    loop.close()
 
 
 if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main(loop))
-    loop.close()
+    main()
