@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import re
 import sys
+import time
 import random
 import shutil
 import argparse
@@ -77,6 +78,7 @@ class GameState:
         self.line_boundaries = divide_lines(words)
         self.max_shown_word = 0
         self.time_left = MAX_TIME
+        self.start_time = time.time()
         self.game_over = False
         self.total_keys_pressed = 0
         self.current_word_keys_pressed = 0
@@ -137,7 +139,7 @@ class GameState:
         wrong_keystrokes = sum(len(word) + 1 for word in wrong_words)
         total_keystrokes = correct_keystrokes + wrong_keystrokes
 
-        cps = correct_keystrokes / MAX_TIME
+        cps = correct_keystrokes / (time.time() - self.start_time)
         wpm = cps * 60.0 / WORD_LENGTH
         accurracy = (
             correct_keystrokes / self.total_keys_pressed
