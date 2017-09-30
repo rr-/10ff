@@ -10,7 +10,7 @@ import shutil
 import tty
 import termios
 
-MAX_TIME = 60
+DEFAULT_TIME = 60
 MAX_COLUMNS = min(shutil.get_terminal_size().columns, 80)
 MAX_LINES = 2
 WORD_LENGTH = 5
@@ -24,6 +24,7 @@ STATUS_TYPED_WRONG = 3
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-t', '--time', type=int, default=DEFAULT_TIME)
     parser.add_argument(
         '-c', '--corpus', type=pathlib.Path, dest='corpus_path',
         default=pathlib.Path(__file__).parent / 'data' / 'english.txt')
@@ -95,13 +96,13 @@ class RawTerminal:
 
 
 class GameState:
-    def __init__(self, words):
+    def __init__(self, words, max_time):
         self._words = words
         self._current_word = 0
         self._text_input = ''
         self._status = [STATUS_TYPING] + [STATUS_UNTYPED for _ in words[1:]]
         self._line_boundaries = divide_lines(words)
-        self._time_left = MAX_TIME
+        self._time_left = max_time
         self._start_time = time.time()
         self._end_time = None
         self._total_keys_pressed = 0
@@ -241,13 +242,15 @@ class Game:
                 r'\s+', args.corpus_path.read_text(encoding='utf-8'))
             if word]
 
-        self._loop = loop
+        self._max_time = args.time
         self._text = [random.choice(corpus) for _ in range(SAMPLE_SIZE)]
+
+        self._loop = loop
         self._raw_terminal = RawTerminal(loop)
         self._raw_terminal.enable()
 
     async def run(self):
-        state = GameState(self._text)
+        state = GameState(self._text, self._max_time)
 
         async def timer():
             while not state.finished:
