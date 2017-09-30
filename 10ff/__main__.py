@@ -76,10 +76,9 @@ class GameState:
         self.status = [STATUS_UNTYPED for _ in words]
         self.status[self.current_word] = STATUS_TYPING
         self.line_boundaries = divide_lines(words)
-        self.max_shown_word = 0
         self.time_left = MAX_TIME
         self.start_time = time.time()
-        self.game_over = False
+        self.end_time = None
         self.total_keys_pressed = 0
         self.current_word_keys_pressed = 0
         self._first_run = True
@@ -97,6 +96,10 @@ class GameState:
         for i in range(MAX_LINES):
             if current + i in range(len(self.line_boundaries)):
                 yield self.line_boundaries[current + i]
+
+    @property
+    def finished(self):
+        return self.end_time is not None
 
     def render(self):
         shown_line_boundaries = list(self.shown_line_boundaries)
@@ -139,7 +142,7 @@ class GameState:
         wrong_keystrokes = sum(len(word) + 1 for word in wrong_words)
         total_keystrokes = correct_keystrokes + wrong_keystrokes
 
-        cps = correct_keystrokes / (time.time() - self.start_time)
+        cps = correct_keystrokes / (self.end_time - self.start_time)
         wpm = cps * 60.0 / WORD_LENGTH
         accurracy = (
             correct_keystrokes / self.total_keys_pressed
@@ -192,15 +195,18 @@ class GameState:
 
         self.current_word += 1
         if self.current_word == len(self.words):
-            self.game_over = True
+            self.finish()
             return
 
         self.status[self.current_word] = STATUS_TYPING
 
+    def finish(self):
+        self.end_time = time.time()
+
     def tick(self):
         self.time_left -= 1
         if self.time_left == 0:
-            self.game_over = True
+            self.finish()
 
 
 class Game:
@@ -220,8 +226,9 @@ class Game:
         state = GameState(self._text)
 
         async def timer():
-            while not state.game_over:
-                await asyncio.sleep(1)
+            while not state.finished:
+                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.5)
                 state.tick()
                 self._raw_terminal.disable()
                 state.render()
@@ -230,20 +237,21 @@ class Game:
 
         timer_future = None
 
-        while not state.game_over:
+        while not state.finished:
             self._raw_terminal.disable()
             state.render()
             self._raw_terminal.enable()
             key = await self._raw_terminal.input_queue.get()
 
             if key is None:
+                state.finish()
                 break
 
             if not timer_future:
                 timer_future = asyncio.ensure_future(timer(), loop=self._loop)
 
             if key == '\x03':
-                break
+                state.finish()
             elif key == '\x7F':
                 state.backspace_pressed()
             elif re.match(r'\s', key):
