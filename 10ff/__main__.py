@@ -12,12 +12,13 @@ import termios
 MAX_TIME = 60
 MAX_COLUMNS = min(shutil.get_terminal_size().columns, 80)
 MAX_LINES = 2
+WORD_LENGTH = 5
 SAMPLE_SIZE = 1000
 
 STATUS_UNTYPED = 0
 STATUS_TYPING = 1
 STATUS_TYPED_WELL = 2
-STATUS_TYPED_BAD = 3
+STATUS_TYPED_WRONG = 3
 
 
 def parse_args():
@@ -70,6 +71,8 @@ class GameState:
         self.max_shown_word = 0
         self.time_left = MAX_TIME
         self.game_over = False
+        self.total_keys_pressed = 0
+        self.current_word_keys_pressed = 0
         self._first_run = True
 
     @property
@@ -101,7 +104,7 @@ class GameState:
                         sys.stdout.write('\x1B[33;1m')
                     elif self.status[idx] == STATUS_TYPED_WELL:
                         sys.stdout.write('\x1B[32;1m')
-                    elif self.status[idx] == STATUS_TYPED_BAD:
+                    elif self.status[idx] == STATUS_TYPED_WRONG:
                         sys.stdout.write('\x1B[31;1m')
                     else:
                         sys.stdout.write('\x1B[39m')
@@ -114,17 +117,68 @@ class GameState:
         sys.stdout.write('\x1B[K')
         print(self.text_input, end='', flush=True)
 
+    def render_stats(self):
+        correct_words = [
+            word
+            for word, status in zip(self.words, self.status)
+            if status == STATUS_TYPED_WELL]
+        wrong_words = [
+            word
+            for word, status in zip(self.words, self.status)
+            if status == STATUS_TYPED_WRONG]
+        correct_keystrokes = sum(len(word) + 1 for word in correct_words)
+        wrong_keystrokes = sum(len(word) + 1 for word in wrong_words)
+        total_keystrokes = correct_keystrokes + wrong_keystrokes
+
+        cps = correct_keystrokes / MAX_TIME
+        wpm = cps * 60.0 / WORD_LENGTH
+        accurracy = (
+            correct_keystrokes / self.total_keys_pressed
+            if self.total_keys_pressed else 1)
+
+        sys.stdout.write('\x1B[999D\x1B[K')
+
+        print(f'CPS (chars per second): {cps}')
+        print(f'WPM (words per minute): {wpm}')
+
+        print(f'Keys pressed:           {total_keystrokes} (', end='')
+        sys.stdout.write('\x1B[32;1m')
+        print(correct_keystrokes, end='|')
+        sys.stdout.write('\x1B[31;1m')
+        print(wrong_keystrokes, end='')
+        sys.stdout.write('\x1B[39m')
+        print(')')
+
+        print(f'Total keys pressed:     {self.total_keys_pressed}')
+        print(f'Accurracy:              {accurracy:.02%}')
+
+        print(r'Correct words:          ', end='')
+        sys.stdout.write('\x1B[32;1m')
+        print(len(correct_words), end='')
+        sys.stdout.write('\x1B[39m')
+        print()
+
+        print(r'Wrong words:            ', end='')
+        sys.stdout.write('\x1B[31;1m')
+        print(len(wrong_words), end='')
+        sys.stdout.write('\x1B[39m')
+        print()
+
     def backspace_pressed(self):
         self.text_input = self.text_input[:-1]
+        self.current_word_keys_pressed += 1
 
     def key_pressed(self, key):
         self.text_input += key
+        self.current_word_keys_pressed += 1
 
     def word_finished(self):
+        self.total_keys_pressed += self.current_word_keys_pressed + 1
+        self.current_word_keys_pressed = 0
         self.status[self.current_word] = (
             STATUS_TYPED_WELL
             if self.words[self.current_word] == self.text_input
-            else STATUS_TYPED_BAD)
+            else STATUS_TYPED_WRONG)
         self.text_input = ''
 
         self.current_word += 1
@@ -188,12 +242,12 @@ class Game:
             else:
                 state.key_pressed(key)
 
+        self._raw_terminal.disable()
+        state.render_stats()
+
     def _got_input(self):
         asyncio.ensure_future(
             self._queue.put(sys.stdin.read(1)), loop=self._loop)
-
-    def __del__(self):
-        self._raw_terminal.disable()
 
 
 async def main(loop):
