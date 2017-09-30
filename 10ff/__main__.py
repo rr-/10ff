@@ -5,10 +5,13 @@ import random
 import shutil
 import argparse
 import pathlib
-import readchar
+import asyncio
+import tty
+import termios
 
+MAX_TIME = 60
 MAX_COLUMNS = min(shutil.get_terminal_size().columns, 80)
-MAX_SHOWN_LINES = 2
+MAX_LINES = 2
 SAMPLE_SIZE = 1000
 
 STATUS_UNTYPED = 0
@@ -44,6 +47,18 @@ def divide_lines(words):
     return lines
 
 
+class RawTerminal:
+    def __init__(self):
+        self._fd = sys.stdin.fileno()
+
+    def enable(self):
+        self._old_settings = termios.tcgetattr(self._fd)
+        tty.setraw(self._fd)
+
+    def disable(self):
+        termios.tcsetattr(self._fd, termios.TCSADRAIN, self._old_settings)
+
+
 class GameState:
     def __init__(self, words):
         self.words = words
@@ -53,6 +68,8 @@ class GameState:
         self.status[self.current_word] = STATUS_TYPING
         self.line_boundaries = divide_lines(words)
         self.max_shown_word = 0
+        self.time_left = MAX_TIME
+        self.game_over = False
         self._first_run = True
 
     @property
@@ -65,17 +82,17 @@ class GameState:
     @property
     def shown_line_boundaries(self):
         current = self.current_line
-        for i in range(MAX_SHOWN_LINES):
+        for i in range(MAX_LINES):
             if current + i in range(len(self.line_boundaries)):
                 yield self.line_boundaries[current + i]
 
     def render(self):
         shown_line_boundaries = list(self.shown_line_boundaries)
         if not self._first_run:
-            sys.stdout.write(f'\x1B[{MAX_SHOWN_LINES + 1}F')
+            sys.stdout.write(f'\x1B[{MAX_LINES + 1}F')
         self._first_run = False
 
-        for i in range(MAX_SHOWN_LINES):
+        for i in range(MAX_LINES):
             sys.stdout.write('\x1B[K')
             if i in range(len(shown_line_boundaries)):
                 low, high = shown_line_boundaries[i]
@@ -92,7 +109,8 @@ class GameState:
                     sys.stdout.write('\x1B[39m')
                     print(end=' ')
             print()
-        print('---')
+        sys.stdout.write('\x1B[K')
+        print(f'--- ({self.time_left} s left) ---')
         sys.stdout.write('\x1B[K')
         print(self.text_input, end='', flush=True)
 
@@ -111,45 +129,77 @@ class GameState:
 
         self.current_word += 1
         if self.current_word == len(self.words):
-            return True
+            self.game_over = True
+            return
 
         self.status[self.current_word] = STATUS_TYPING
-        return False
+
+    def tick(self):
+        if self.time_left == 0:
+            self.game_over = True
+        else:
+            self.time_left -= 1
 
 
 class Game:
-    def __init__(self, args):
+    def __init__(self, loop, args):
         corpus = [
             word
             for word in re.split(
                 r'\s+', args.corpus_path.read_text(encoding='utf-8'))
             if word]
 
+        self._loop = loop
         self._text = [random.choice(corpus) for _ in range(SAMPLE_SIZE)]
+        self._raw_terminal = RawTerminal()
+        self._raw_terminal.enable()
 
-    def run(self):
+        self._queue = asyncio.Queue(loop=self._loop)
+        self._loop.add_reader(sys.stdin, self._got_input)
+
+    async def run(self):
         state = GameState(self._text)
-        game_over = False
 
-        while not game_over:
+        async def timer():
+            while not state.game_over:
+                await asyncio.sleep(1)
+                state.tick()
+                self._raw_terminal.disable()
+                state.render()
+                self._raw_terminal.enable()
+
+        asyncio.ensure_future(timer(), loop=self._loop)
+
+        while not state.game_over:
+            self._raw_terminal.disable()
             state.render()
-            key = readchar.readkey()
+            self._raw_terminal.enable()
+            key = await self._queue.get()
 
             if key == '\x03':
-                game_over = True
+                break
             elif key == '\x7F':
                 state.backspace_pressed()
             elif re.match(r'\s', key):
-                game_over = state.word_finished()
+                state.word_finished()
             else:
                 state.key_pressed(key)
 
+    def _got_input(self):
+        asyncio.ensure_future(
+            self._queue.put(sys.stdin.read(1)), loop=self._loop)
 
-def main():
+    def __del__(self):
+        self._raw_terminal.disable()
+
+
+async def main(loop):
     args = parse_args()
-    game = Game(args)
-    game.run()
+    game = Game(loop, args)
+    await game.run()
 
 
 if __name__ == '__main__':
-    main()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main(loop))
+    loop.close()
