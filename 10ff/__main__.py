@@ -61,7 +61,7 @@ class RawTerminal:
 
     @staticmethod
     def move_cursor_up(num):
-        sys.stdout.write(f'\x1B[{num}F')
+        sys.stdout.write('\x1B[{}F'.format(num))
 
     @staticmethod
     def set_red_font():
@@ -150,7 +150,7 @@ class GameState:
                     print(end=' ')
             print()
         RawTerminal.erase_whole_line()
-        print(f'--- ({self._time_left} s left) ---')
+        print('--- ({} s left) ---'.format(self._time_left))
         RawTerminal.erase_whole_line()
         print(self._text_input, end='', flush=True)
 
@@ -175,10 +175,10 @@ class GameState:
 
         RawTerminal.erase_whole_line()
 
-        print(f'CPS (chars per second): {cps:.1f}')
-        print(f'WPM (words per minute): {wpm:.1f}')
+        print('CPS (chars per second): {:.1f}'.format(cps))
+        print('WPM (words per minute): {:.1f}'.format(wpm))
 
-        print(f'Keys pressed:           {total_keystrokes} (', end='')
+        print('Keys pressed:           {} ('.format(total_keystrokes), end='')
         RawTerminal.set_green_font()
         print(correct_keystrokes, end='|')
         RawTerminal.set_red_font()
@@ -186,8 +186,8 @@ class GameState:
         RawTerminal.set_default_font()
         print(')')
 
-        print(f'Total keys pressed:     {self._total_keys_pressed}')
-        print(f'Accurracy:              {accurracy:.1%}')
+        print('Total keys pressed:     {}'.format(self._total_keys_pressed))
+        print('Accurracy:              {:.1%}'.format(accurracy))
 
         print(r'Correct words:          ', end='')
         RawTerminal.set_green_font()
