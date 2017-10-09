@@ -17,9 +17,10 @@ WORD_LENGTH = 5
 SAMPLE_SIZE = 1000
 
 STATUS_UNTYPED = 0
-STATUS_TYPING = 1
-STATUS_TYPED_WELL = 2
-STATUS_TYPED_WRONG = 3
+STATUS_TYPING_WELL = 1
+STATUS_TYPING_WRONG = 2
+STATUS_TYPED_WELL = 3
+STATUS_TYPED_WRONG = 4
 
 
 def parse_args():
@@ -100,7 +101,8 @@ class GameState:
         self._words = words
         self._current_word = 0
         self._text_input = ''
-        self._status = [STATUS_TYPING] + [STATUS_UNTYPED for _ in words[1:]]
+        self._status = (
+            [STATUS_TYPING_WELL] + [STATUS_UNTYPED for _ in words[1:]])
         self._line_boundaries = divide_lines(words)
         self._time_left = max_time
         self._start_time = time.time()
@@ -138,8 +140,10 @@ class GameState:
             if i in range(len(shown_line_boundaries)):
                 low, high = shown_line_boundaries[i]
                 for idx in range(low, high):
-                    if self._status[idx] == STATUS_TYPING:
+                    if self._status[idx] == STATUS_TYPING_WELL:
                         RawTerminal.set_yellow_font()
+                    elif self._status[idx] == STATUS_TYPING_WRONG:
+                        RawTerminal.set_red_font()
                     elif self._status[idx] == STATUS_TYPED_WELL:
                         RawTerminal.set_green_font()
                     elif self._status[idx] == STATUS_TYPED_WRONG:
@@ -204,10 +208,12 @@ class GameState:
     def backspace_pressed(self):
         self._text_input = self._text_input[:-1]
         self._current_word_keys_pressed += 1
+        self._update_typing_status()
 
     def key_pressed(self, key):
         self._text_input += key
         self._current_word_keys_pressed += 1
+        self._update_typing_status()
 
     def word_finished(self):
         self._total_keys_pressed += self._current_word_keys_pressed + 1
@@ -223,7 +229,7 @@ class GameState:
             self.finish()
             return
 
-        self._status[self._current_word] = STATUS_TYPING
+        self._status[self._current_word] = STATUS_TYPING_WELL
 
     def finish(self):
         self._end_time = time.time()
@@ -232,6 +238,12 @@ class GameState:
         self._time_left -= 1
         if self._time_left == 0:
             self.finish()
+
+    def _update_typing_status(self):
+        self._status[self._current_word] = (
+            STATUS_TYPING_WELL
+            if self._words[self._current_word].startswith(self._text_input)
+            else STATUS_TYPING_WRONG)
 
 
 class Game:
