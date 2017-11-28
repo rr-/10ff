@@ -205,6 +205,9 @@ class GameState:
         RawTerminal.set_default_font()
         print()
 
+    def started(self):
+        self._start_time = time.time()
+
     def backspace_pressed(self):
         self._text_input = self._text_input[:-1]
         self._current_word_keys_pressed += 1
@@ -287,6 +290,7 @@ class Game:
                 break
 
             if not timer_future:
+                state.started()
                 timer_future = asyncio.ensure_future(timer(), loop=self._loop)
 
             if key == '\x03':
