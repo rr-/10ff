@@ -31,7 +31,7 @@ class GameState:
         self._time_left = max_time
         self._start_time = time.time()
         self._end_time = None
-        self._total_keys_pressed = 0
+        self._keys_pressed = 0
         self._current_word_keys_pressed = 0
         self._first_render = True
 
@@ -93,15 +93,15 @@ class GameState:
             for word, status in zip(self._words, self._status)
             if status == STATUS_TYPED_WRONG
         ]
-        correct_keystrokes = sum(len(word) + 1 for word in correct_words)
-        wrong_keystrokes = sum(len(word) + 1 for word in wrong_words)
-        total_keystrokes = correct_keystrokes + wrong_keystrokes
+        correct_characters = sum(len(word) + 1 for word in correct_words)
+        wrong_characters = sum(len(word) + 1 for word in wrong_words)
+        total_characters = correct_characters + wrong_characters
 
-        cps = correct_keystrokes / (self._end_time - self._start_time)
+        cps = correct_characters / (self._end_time - self._start_time)
         wpm = cps * 60.0 / WORD_LENGTH
         accurracy = (
-            correct_keystrokes / self._total_keys_pressed
-            if self._total_keys_pressed else 1
+            correct_characters / self._keys_pressed
+            if self._keys_pressed else 1
         )
 
         RawTerminal.erase_whole_line()
@@ -109,15 +109,15 @@ class GameState:
         print('CPS (chars per second): {:.1f}'.format(cps))
         print('WPM (words per minute): {:.1f}'.format(wpm))
 
-        print('Keys pressed:           {} ('.format(total_keystrokes), end='')
+        print('Characters typed:       {} ('.format(total_characters), end='')
         RawTerminal.set_green_font()
-        print(correct_keystrokes, end='|')
+        print(correct_characters, end='|')
         RawTerminal.set_red_font()
-        print(wrong_keystrokes, end='')
+        print(wrong_characters, end='')
         RawTerminal.set_default_font()
         print(')')
 
-        print('Total keys pressed:     {}'.format(self._total_keys_pressed))
+        print('Keys pressed:           {}'.format(self._keys_pressed))
         print('Accurracy:              {:.1%}'.format(accurracy))
 
         print(r'Correct words:          ', end='')
@@ -146,7 +146,7 @@ class GameState:
         self._update_typing_status()
 
     def word_finished(self):
-        self._total_keys_pressed += self._current_word_keys_pressed + 1
+        self._keys_pressed += self._current_word_keys_pressed + 1
         self._current_word_keys_pressed = 0
         self._status[self._current_word] = (
             STATUS_TYPED_WELL
