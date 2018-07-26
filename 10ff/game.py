@@ -25,7 +25,8 @@ class GameState:
         self._current_word = 0
         self._text_input = ''
         self._status = (
-            [STATUS_TYPING_WELL] + [STATUS_UNTYPED for _ in words[1:]])
+            [STATUS_TYPING_WELL] + [STATUS_UNTYPED for _ in words[1:]]
+        )
         self._line_boundaries = divide_lines(words, MAX_COLUMNS)
         self._time_left = max_time
         self._start_time = time.time()
@@ -85,11 +86,13 @@ class GameState:
         correct_words = [
             word
             for word, status in zip(self._words, self._status)
-            if status == STATUS_TYPED_WELL]
+            if status == STATUS_TYPED_WELL
+        ]
         wrong_words = [
             word
             for word, status in zip(self._words, self._status)
-            if status == STATUS_TYPED_WRONG]
+            if status == STATUS_TYPED_WRONG
+        ]
         correct_keystrokes = sum(len(word) + 1 for word in correct_words)
         wrong_keystrokes = sum(len(word) + 1 for word in wrong_words)
         total_keystrokes = correct_keystrokes + wrong_keystrokes
@@ -98,7 +101,8 @@ class GameState:
         wpm = cps * 60.0 / WORD_LENGTH
         accurracy = (
             correct_keystrokes / self._total_keys_pressed
-            if self._total_keys_pressed else 1)
+            if self._total_keys_pressed else 1
+        )
 
         RawTerminal.erase_whole_line()
 
@@ -147,7 +151,8 @@ class GameState:
         self._status[self._current_word] = (
             STATUS_TYPED_WELL
             if self._words[self._current_word] == self._text_input
-            else STATUS_TYPED_WRONG)
+            else STATUS_TYPED_WRONG
+        )
         self._text_input = ''
 
         self._current_word += 1
@@ -169,7 +174,8 @@ class GameState:
         self._status[self._current_word] = (
             STATUS_TYPING_WELL
             if self._words[self._current_word].startswith(self._text_input)
-            else STATUS_TYPING_WRONG)
+            else STATUS_TYPING_WRONG
+        )
 
 
 class Game:
@@ -177,8 +183,10 @@ class Game:
         corpus = [
             word
             for word in re.split(
-                r'\s+', args.corpus_path.read_text(encoding='utf-8'))
-            if word]
+                r'\s+', args.corpus_path.read_text(encoding='utf-8')
+            )
+            if word
+        ]
 
         self._max_time = args.time
         self._text = [random.choice(corpus) for _ in range(SAMPLE_SIZE)]

@@ -12,8 +12,11 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-t', '--time', type=int, default=DEFAULT_TIME)
     parser.add_argument(
-        '-c', '--corpus', type=pathlib.Path, dest='corpus_path',
-        default=pathlib.Path(__file__).parent / 'data' / 'english.txt')
+        '-c', '--corpus',
+        type=pathlib.Path,
+        dest='corpus_path',
+        default=pathlib.Path(__file__).parent / 'data' / 'english.txt'
+    )
     parser.add_argument('-w', '--width', type=int, default=80)
     return parser.parse_args()
 
