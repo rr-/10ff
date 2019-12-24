@@ -14,4 +14,13 @@ tracking and 10 megabytes of AJAX crap.
 git clone https://github.com/rr-/10ff
 cd 10ff
 pip install --user .
+10ff
+```
+
+#### Running without installation
+
+```
+git clone https://github.com/rr-/10ff
+cd 10ff
+python3 -m 10ff
 ```
