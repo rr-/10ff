@@ -23,10 +23,10 @@ class GameState:
     def __init__(self, words, max_time):
         self._words = words
         self._current_word = 0
-        self._text_input = ''
-        self._status = (
-            [STATUS_TYPING_WELL] + [STATUS_UNTYPED for _ in words[1:]]
-        )
+        self._text_input = ""
+        self._status = [STATUS_TYPING_WELL] + [
+            STATUS_UNTYPED for _ in words[1:]
+        ]
         self._line_boundaries = divide_lines(words, MAX_COLUMNS)
         self._time_left = max_time
         self._start_time = time.time()
@@ -74,13 +74,13 @@ class GameState:
                         RawTerminal.set_red_font()
                     else:
                         RawTerminal.set_default_font()
-                    print(self._words[idx], end='')
-                    print(end=' ')
+                    print(self._words[idx], end="")
+                    print(end=" ")
             print()
         RawTerminal.erase_whole_line()
-        print('--- ({} s left) ---'.format(self._time_left))
+        print("--- ({} s left) ---".format(self._time_left))
         RawTerminal.erase_whole_line()
-        print(self._text_input, end='', flush=True)
+        print(self._text_input, end="", flush=True)
 
     def render_stats(self):
         correct_words = [
@@ -101,34 +101,35 @@ class GameState:
         wpm = cps * 60.0 / WORD_LENGTH
         accuracy = (
             correct_characters / self._keys_pressed
-            if self._keys_pressed else 1
+            if self._keys_pressed
+            else 1
         )
 
         RawTerminal.erase_whole_line()
 
-        print('CPS (chars per second): {:.1f}'.format(cps))
-        print('WPM (words per minute): {:.1f}'.format(wpm))
+        print("CPS (chars per second): {:.1f}".format(cps))
+        print("WPM (words per minute): {:.1f}".format(wpm))
 
-        print('Characters typed:       {} ('.format(total_characters), end='')
+        print("Characters typed:       {} (".format(total_characters), end="")
         RawTerminal.set_green_font()
-        print(correct_characters, end='|')
+        print(correct_characters, end="|")
         RawTerminal.set_red_font()
-        print(wrong_characters, end='')
+        print(wrong_characters, end="")
         RawTerminal.set_default_font()
-        print(')')
+        print(")")
 
-        print('Keys pressed:           {}'.format(self._keys_pressed))
-        print('Accuracy:               {:.1%}'.format(accuracy))
+        print("Keys pressed:           {}".format(self._keys_pressed))
+        print("Accuracy:               {:.1%}".format(accuracy))
 
-        print(r'Correct words:          ', end='')
+        print(r"Correct words:          ", end="")
         RawTerminal.set_green_font()
-        print(len(correct_words), end='')
+        print(len(correct_words), end="")
         RawTerminal.set_default_font()
         print()
 
-        print(r'Wrong words:            ', end='')
+        print(r"Wrong words:            ", end="")
         RawTerminal.set_red_font()
-        print(len(wrong_words), end='')
+        print(len(wrong_words), end="")
         RawTerminal.set_default_font()
         print()
 
@@ -153,7 +154,7 @@ class GameState:
             if self._words[self._current_word] == self._text_input
             else STATUS_TYPED_WRONG
         )
-        self._text_input = ''
+        self._text_input = ""
 
         self._current_word += 1
         if self._current_word == len(self._words):
@@ -183,7 +184,7 @@ class Game:
         corpus = [
             word
             for word in re.split(
-                r'\s+', args.corpus_path.read_text(encoding='utf-8')
+                r"\s+", args.corpus_path.read_text(encoding="utf-8")
             )
             if word
         ]
@@ -224,11 +225,11 @@ class Game:
                 state.started()
                 timer_future = asyncio.ensure_future(timer(), loop=self._loop)
 
-            if key == '\x03':
+            if key == "\x03":
                 state.finish()
-            elif key == '\x7F':
+            elif key == "\x7F":
                 state.backspace_pressed()
-            elif re.match(r'\s', key):
+            elif re.match(r"\s", key):
                 state.word_finished()
             else:
                 state.key_pressed(key)
