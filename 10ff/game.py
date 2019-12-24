@@ -180,7 +180,7 @@ class GameState:
 
 
 class Game:
-    def __init__(self, loop, corpus_path, max_time):
+    def __init__(self, loop, corpus_path, max_time, rigorous_spaces):
         corpus = [
             word
             for word in re.split(
@@ -191,6 +191,7 @@ class Game:
 
         self._max_time = max_time
         self._text = [random.choice(corpus) for _ in range(SAMPLE_SIZE)]
+        self._rigorous_spaces = rigorous_spaces
 
         self._loop = loop
         self._raw_terminal = RawTerminal(loop)
@@ -230,7 +231,8 @@ class Game:
             elif key == "\x7F":
                 state.backspace_pressed()
             elif re.match(r"\s", key):
-                state.word_finished()
+                if state._text_input != "" or self._rigorous_spaces:
+                    state.word_finished()
             else:
                 state.key_pressed(key)
 

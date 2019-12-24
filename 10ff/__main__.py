@@ -49,6 +49,12 @@ def parse_args():
     parser.add_argument(
         "-l", "--list", action="store_true", help="lists the built-in corpora"
     )
+    parser.add_argument(
+        "-r",
+        "--rigorous-spaces",
+        action="store_true",
+        help="treat double space as error",
+    )
     return parser.parse_args()
 
 
@@ -64,7 +70,7 @@ def main():
 
     corpus_path = get_corpus_path(args.corpus)
 
-    game = Game(loop, corpus_path, args.time)
+    game = Game(loop, corpus_path, args.time, args.rigorous_spaces)
     loop.run_until_complete(game.run())
     loop.close()
 
