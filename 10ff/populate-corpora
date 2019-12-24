@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+import json
+import sys
+import typing as T
+
+import lxml.html
+import requests
+
+tenff = __import__("10ff.util")
+CORPORA_PATH = tenff.util.CORPORA_PATH
+MIN_ATTEMPTS = 10
+
+
+def write_words(name: str, words: T.Iterable[str]) -> None:
+    words = list(words)
+    if words:
+        (CORPORA_PATH / (name + ".txt")).write_text("\n".join(words) + "\n")
+
+
+def dl_10fastfingers_lang(
+    lang: str, lang_id: int, advanced: bool
+) -> T.Set[str]:
+    print(
+        f"downloading 10fastfingers {lang} corpus (advanced: {advanced})...",
+        file=sys.stderr,
+    )
+
+    words: T.Set[str] = set()
+    last_sizes: T.List[int] = []
+    while True:
+        response = requests.post(
+            "https://10fastfingers.com/speedtests/get_words",
+            headers={"X-Requested-With": "XMLHttpRequest"},
+            data={
+                "speedtest_mode": "advanced" if advanced else "",
+                "speedtest_id": lang_id,
+            },
+        )
+        response.raise_for_status()
+        new_words = response.text.split("|")
+        new_words.pop()  # discard last word as 10ff truncates its output
+        words |= set(new_words)
+        last_sizes.append(len(words))
+
+        if (
+            len(last_sizes) >= MIN_ATTEMPTS
+            and len(set(last_sizes[-MIN_ATTEMPTS:])) == 1
+        ):
+            # no new words for the last MIN_ATTEMPTS attempts
+            break
+
+    write_words(lang + "-advanced" if advanced else lang, sorted(words))
+
+
+def get_10fastfinger_langs() -> T.Dict[int, str]:
+    print("downloading 10fastfingers language definitions...", file=sys.stderr)
+    languages: T.Dicst[int, str] = {}
+    response = requests.get("https://10fastfingers.com/typing-test/english")
+    response.raise_for_status()
+    doc = lxml.html.fromstring(response.text)
+    for node in doc.cssselect('a[href^="/typing-test"]'):
+        language = node.attrib["href"].replace("typing-test", "").strip("/")
+        response = requests.get(
+            f"https://10fastfingers.com/typing-test/{language}"
+        )
+        response.raise_for_status()
+        language_id = int(
+            lxml.html.fromstring(response.text)
+            .cssselect("#speedtest-id")[0]
+            .attrib["value"]
+        )
+        languages[language] = language_id
+    return languages
+
+
+def dl_10fastfingers() -> None:
+    # languages = dl_10fastfinger_langs()
+    languages = {
+        "english": 1,
+        "german": 2,
+        "french": 3,
+        "portuguese": 4,
+        "spanish": 5,
+        "indonesian": 6,
+        "turkish": 7,
+        "vietnamese": 8,
+        "polish": 9,
+        "romanian": 10,
+        "malaysian": 11,
+        "norwegian": 12,
+        "persian": 13,
+        "hungarian": 14,
+        "traditional-chinese": 15,
+        "simplified-chinese": 16,
+        "danish": 17,
+        "dutch": 18,
+        "swedish": 19,
+        "italian": 20,
+        "finnish": 21,
+        "serbian": 22,
+        "catalan": 23,
+        "filipino": 24,
+        "croatian": 25,
+        "russian": 26,
+        "arabic": 27,
+        "bulgarian": 28,
+        "japanese": 29,
+        "albanian": 30,
+        "korean": 31,
+        "greek": 32,
+        "czech": 33,
+        "estonian": 34,
+        "latvian": 35,
+        "hebrew": 36,
+        "urdu": 37,
+        "galician": 38,
+        "lithuanian": 39,
+        "georgian": 40,
+        "armenian": 41,
+        "kurdish": 42,
+        "azerbaijani": 43,
+        "hindi": 44,
+        "slovak": 45,
+        "slovenian": 46,
+        "icelandic": 48,
+        "thai": 50,
+        "pashto": 51,
+        "esperanto": 52,
+        "ukrainian": 53,
+        "macedonian": 54,
+        "malagasy": 55,
+        "bengali": 56,
+    }
+
+    for lang, lang_id in languages.items():
+        words = dl_10fastfingers_lang(lang, lang_id, advanced=False)
+        words = dl_10fastfingers_lang(lang, lang_id, advanced=True)
+
+
+def dl_typings() -> None:
+    print("downloading typings.gg corpora...", file=sys.stderr)
+    response = requests.get("https://typings.gg/texts/random.json")
+    response.raise_for_status()
+    for key, words in response.json().items():
+        write_words(f"typings-{key}", words)
+
+
+def main() -> None:
+    dl_10fastfingers()
+    dl_typings()
+
+
+if __name__ == "__main__":
+    main()
