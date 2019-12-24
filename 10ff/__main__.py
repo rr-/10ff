@@ -1,8 +1,8 @@
 import argparse
 import asyncio
-import pathlib
 
 from .game import Game
+from .util import get_corpus_path
 
 DEFAULT_TIME = 60
 
@@ -10,13 +10,7 @@ DEFAULT_TIME = 60
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--time", type=int, default=DEFAULT_TIME)
-    parser.add_argument(
-        "-c",
-        "--corpus",
-        type=pathlib.Path,
-        dest="corpus_path",
-        default=pathlib.Path(__file__).parent / "data" / "english.txt",
-    )
+    parser.add_argument("-c", "--corpus", type=str, default="english")
     parser.add_argument("-w", "--width", type=int, default=80)
     return parser.parse_args()
 
@@ -24,7 +18,10 @@ def parse_args():
 def main():
     loop = asyncio.get_event_loop()
     args = parse_args()
-    game = Game(loop, args)
+
+    corpus_path = get_corpus_path(args.corpus)
+
+    game = Game(loop, corpus_path, args.time)
     loop.run_until_complete(game.run())
     loop.close()
 

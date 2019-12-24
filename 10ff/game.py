@@ -180,16 +180,16 @@ class GameState:
 
 
 class Game:
-    def __init__(self, loop, args):
+    def __init__(self, loop, corpus_path, max_time):
         corpus = [
             word
             for word in re.split(
-                r"\s+", args.corpus_path.read_text(encoding="utf-8")
+                r"\s+", corpus_path.read_text(encoding="utf-8")
             )
             if word
         ]
 
-        self._max_time = args.time
+        self._max_time = max_time
         self._text = [random.choice(corpus) for _ in range(SAMPLE_SIZE)]
 
         self._loop = loop
