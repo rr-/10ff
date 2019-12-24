@@ -99,7 +99,7 @@ class GameState:
 
         cps = correct_characters / (self._end_time - self._start_time)
         wpm = cps * 60.0 / WORD_LENGTH
-        accurracy = (
+        accuracy = (
             correct_characters / self._keys_pressed
             if self._keys_pressed else 1
         )
@@ -118,7 +118,7 @@ class GameState:
         print(')')
 
         print('Keys pressed:           {}'.format(self._keys_pressed))
-        print('Accurracy:              {:.1%}'.format(accurracy))
+        print('Accuracy:               {:.1%}'.format(accuracy))
 
         print(r'Correct words:          ', end='')
         RawTerminal.set_green_font()
