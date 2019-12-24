@@ -2,7 +2,7 @@ import argparse
 import asyncio
 
 from .game import Game
-from .util import get_corpus_path
+from .util import CORPORA_PATH, get_corpus_path
 
 DEFAULT_TIME = 60
 PROLOG = (
@@ -46,12 +46,21 @@ def parse_args():
         default=80,
         help="with of the terminal to play in",
     )
+    parser.add_argument(
+        "-l", "--list", action="store_true", help="lists the built-in corpora"
+    )
     return parser.parse_args()
 
 
 def main():
     loop = asyncio.get_event_loop()
     args = parse_args()
+
+    if args.list:
+        for path in sorted(CORPORA_PATH.iterdir()):
+            if path.suffix == ".txt":
+                print(path.stem)
+        return
 
     corpus_path = get_corpus_path(args.corpus)
 
