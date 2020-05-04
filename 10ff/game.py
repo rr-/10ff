@@ -240,7 +240,7 @@ class Game:
             elif re.match(r"\s", key):
                 if state._text_input != "" or self._rigorous_spaces:
                     state.word_finished()
-            elif ord(key) >= 32:
+            elif len(key) > 1 or ord(key) >= 32:
                 state.key_pressed(key)
 
         await timer_future

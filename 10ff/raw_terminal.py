@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 import termios
 import tty
@@ -40,10 +41,26 @@ class RawTerminal:
         self._old_settings = termios.tcgetattr(self._fd)
         tty.setraw(self._fd)
 
+        new_settings = termios.tcgetattr(self._fd)
+        new_settings[3] = new_settings[3] & ~(
+            termios.ECHO | termios.ICANON
+        )  # lflags
+        new_settings[6][termios.VMIN] = 0  # cc
+        new_settings[6][termios.VTIME] = 0  # cc
+        termios.tcsetattr(self._fd, termios.TCSADRAIN, new_settings)
+
     def disable(self):
         termios.tcsetattr(self._fd, termios.TCSADRAIN, self._old_settings)
 
-    def _got_input(self):
-        asyncio.ensure_future(
-            self.input_queue.put(sys.stdin.read(1)), loop=self._loop
-        )
+    def _got_input(self, *args, **kwargs):
+        with open("/tmp/test.txt", "a") as handle:
+            print(*args, **kwargs, file=handle)
+
+        keys = b""
+        ch = os.read(self._fd, 1)
+        while ch != None and len(ch) > 0:
+            keys += ch
+            ch = os.read(self._fd, 1)
+        keys = keys.decode()
+
+        asyncio.ensure_future(self.input_queue.put(keys), loop=self._loop)
