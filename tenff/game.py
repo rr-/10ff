@@ -23,7 +23,7 @@ SAMPLE_SIZE = 1000
 AVG_WORD_LENGTH = 5
 
 
-class WordState(IntEnum):
+class WordStatus(IntEnum):
     """Word state."""
 
     UNTYPED = 0
@@ -31,6 +31,14 @@ class WordState(IntEnum):
     TYPING_WRONG = 2
     TYPED_WELL = 3
     TYPED_WRONG = 4
+
+
+@dataclass
+class Word:
+    """A single word in context of a running game."""
+
+    text: str
+    status: WordStatus
 
 
 @dataclass
@@ -51,12 +59,17 @@ class GameState:
         :param words: full list of words to type for this game.
         :param max_time: maximum time for this game.
         """
-        self.words = words
-        self.current_word = 0
-        self.word_input = ""
-        self.word_states = [WordState.TYPING_WELL] + [
-            WordState.UNTYPED for _word in words[1:]
+        self.words = [
+            Word(
+                text=word,
+                status=WordStatus.TYPING_WELL
+                if i == 0
+                else WordStatus.UNTYPED,
+            )
+            for i, word in enumerate(words)
         ]
+        self.current_word_index = 0
+        self.word_input = ""
         self.line_boundaries = divide_lines(words, MAX_COLUMNS)
         self.time_left = max_time
         self.start_time: T.Optional[float] = None
@@ -84,11 +97,16 @@ class GameState:
 
     @property
     def current_line(self) -> int:
-        """Current line within all of the game lines."""
+        """Current line number within all of the game lines."""
         for i, (low, high) in enumerate(self.line_boundaries):
-            if self.current_word in range(low, high):
+            if self.current_word_index in range(low, high):
                 return i
         return len(self.line_boundaries) - 1
+
+    @property
+    def current_word(self) -> Word:
+        """Currently typed word."""
+        return self.words[self.current_word_index]
 
     @property
     def shown_line_boundaries(self) -> T.Iterable[tuple[int, int]]:
@@ -170,12 +188,10 @@ class GameExecutor:
 
     def update_typing_status(self) -> None:
         """Update the interal list of word states."""
-        self.state.word_states[self.state.current_word] = (
-            WordState.TYPING_WELL
-            if self.state.words[self.state.current_word].startswith(
-                self.state.word_input
-            )
-            else WordState.TYPING_WRONG
+        self.state.current_word.status = (
+            WordStatus.TYPING_WELL
+            if self.state.current_word.text.startswith(self.state.word_input)
+            else WordStatus.TYPING_WRONG
         )
 
     def backspace_pressed(self) -> None:
@@ -205,20 +221,18 @@ class GameExecutor:
         """
         self.state.keys_pressed += self.state.current_word_keys_pressed + 1
         self.state.current_word_keys_pressed = 0
-        self.state.word_states[self.state.current_word] = (
-            WordState.TYPED_WELL
-            if self.state.words[self.state.current_word]
-            == self.state.word_input
-            else WordState.TYPED_WRONG
+        self.state.current_word.status = (
+            WordStatus.TYPED_WELL
+            if self.state.current_word.text == self.state.word_input
+            else WordStatus.TYPED_WRONG
         )
         self.state.word_input = ""
 
-        self.state.current_word += 1
-        if self.state.current_word == len(self.state.words):
+        self.state.current_word_index += 1
+        if self.state.current_word_index == len(self.state.words):
             self.finish()
-            return
-
-        self.state.word_states[self.state.current_word] = WordState.TYPING_WELL
+        else:
+            self.state.current_word.status = WordStatus.TYPING_WELL
 
     def render(self) -> None:
         """Render the game text up to MAX_DISPLAY_LINES together with a timer."""
@@ -234,13 +248,13 @@ class GameExecutor:
                 for idx in range(low, high):
                     set_text_color(
                         {
-                            WordState.TYPING_WELL: TextColor.YELLOW,
-                            WordState.TYPING_WRONG: TextColor.RED,
-                            WordState.TYPED_WELL: TextColor.GREEN,
-                            WordState.TYPED_WRONG: TextColor.RED,
-                        }.get(self.state.word_states[idx], TextColor.DEFAULT)
+                            WordStatus.TYPING_WELL: TextColor.YELLOW,
+                            WordStatus.TYPING_WRONG: TextColor.RED,
+                            WordStatus.TYPED_WELL: TextColor.GREEN,
+                            WordStatus.TYPED_WRONG: TextColor.RED,
+                        }.get(self.state.words[idx].status, TextColor.DEFAULT)
                     )
-                    print(self.state.words[idx], end="")
+                    print(self.state.words[idx].text, end="")
                     print(end=" ")
             print()
         erase_whole_line()
@@ -251,14 +265,14 @@ class GameExecutor:
     def render_stats(self) -> None:
         """Render final game statistics."""
         correct_words = [
-            word
-            for word, status in zip(self.state.words, self.state.word_states)
-            if status == WordState.TYPED_WELL
+            word.text
+            for word in self.state.words
+            if word.status == WordStatus.TYPED_WELL
         ]
         wrong_words = [
-            word
-            for word, status in zip(self.state.words, self.state.word_states)
-            if status == WordState.TYPED_WRONG
+            word.text
+            for word in self.state.words
+            if word.status == WordStatus.TYPED_WRONG
         ]
         correct_characters = sum(len(word) + 1 for word in correct_words)
         wrong_characters = sum(len(word) + 1 for word in wrong_words)
