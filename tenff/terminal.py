@@ -1,13 +1,51 @@
 """Terminal manipulation utilities."""
 import asyncio
+import contextlib
 import os
 import sys
 import termios
 import tty
 import typing as T
+from enum import IntEnum
 
 
-class RawTerminal:
+class TextColor(IntEnum):
+    """Text color."""
+
+    RED = 1
+    GREEN = 2
+    YELLOW = 3
+    DEFAULT = 4
+
+
+def move_cursor_up(num: int) -> None:
+    """Move the caret up by the specified number of lines.
+
+    :param num: how many lines to go.
+    """
+    sys.stdout.write("\x1B[{}F".format(num))
+
+
+def set_text_color(color: TextColor) -> None:
+    """Change the color of the text to the given value.
+
+    :param color: color to set"""
+    sys.stdout.write(
+        {
+            TextColor.RED: "\x1B[31;1m",
+            TextColor.GREEN: "\x1B[32;1m",
+            TextColor.YELLOW: "\x1B[33;1m",
+            TextColor.DEFAULT: "\x1B[39m",
+        }[color]
+    )
+
+
+def erase_whole_line() -> None:
+    """Erase the entire line where the caret is at."""
+    sys.stdout.write("\x1B[999D\x1B[K")
+
+
+class TerminalInputHandler:
     """A class for terminal manipulation."""
 
     def __init__(self, loop: asyncio.events.AbstractEventLoop) -> None:
@@ -23,41 +61,9 @@ class RawTerminal:
         )
         loop.add_reader(sys.stdin, self._got_input)
 
-    @staticmethod
-    def move_cursor_up(num: int) -> None:
-        """Move the caret up by the specified number of lines.
-
-        :param num: how many lines to go.
-        """
-        sys.stdout.write("\x1B[{}F".format(num))
-
-    @staticmethod
-    def set_red_font() -> None:
-        """Change the color of the text to red."""
-        sys.stdout.write("\x1B[31;1m")
-
-    @staticmethod
-    def set_green_font() -> None:
-        """Change the color of the text to green."""
-        sys.stdout.write("\x1B[32;1m")
-
-    @staticmethod
-    def set_yellow_font() -> None:
-        """Change the color of the text to yellow."""
-        sys.stdout.write("\x1B[33;1m")
-
-    @staticmethod
-    def set_default_font() -> None:
-        """Reset the color of the text."""
-        sys.stdout.write("\x1B[39m")
-
-    @staticmethod
-    def erase_whole_line() -> None:
-        """Erase the entire line where the caret is at."""
-        sys.stdout.write("\x1B[999D\x1B[K")
-
-    def enable(self) -> None:
-        """Enable unbuffered input."""
+    @contextlib.contextmanager
+    def enable_raw_terminal(self) -> T.Iterator[None]:
+        """A context manager that enables unbuffered input."""
         self._old_settings = termios.tcgetattr(self._fd)
         tty.setraw(self._fd)
 
@@ -69,10 +75,13 @@ class RawTerminal:
         new_settings[6][termios.VTIME] = 0  # cc
         termios.tcsetattr(self._fd, termios.TCSADRAIN, new_settings)
 
-    def disable(self) -> None:
-        """Disable unbuffered input."""
-        if self._old_settings is not None:
-            termios.tcsetattr(self._fd, termios.TCSADRAIN, self._old_settings)
+        try:
+            yield
+        finally:
+            if self._old_settings is not None:
+                termios.tcsetattr(
+                    self._fd, termios.TCSADRAIN, self._old_settings
+                )
 
     def _got_input(self) -> None:
         """Handle the keypress event."""

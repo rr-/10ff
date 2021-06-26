@@ -8,7 +8,13 @@ import typing as T
 from enum import IntEnum
 from pathlib import Path
 
-from tenff.raw_terminal import RawTerminal
+from tenff.terminal import (
+    TerminalInputHandler,
+    TextColor,
+    erase_whole_line,
+    move_cursor_up,
+    set_text_color,
+)
 from tenff.util import divide_lines
 
 MAX_COLUMNS = min(shutil.get_terminal_size().columns, 80)
@@ -145,30 +151,28 @@ class GameState:
         """Render the game text up to MAX_DISPLAY_LINES together with a timer."""
         shown_line_boundaries = list(self._shown_line_boundaries)
         if not self._first_render:
-            RawTerminal.move_cursor_up(MAX_DISPLAY_LINES + 1)
+            move_cursor_up(MAX_DISPLAY_LINES + 1)
         self._first_render = False
 
         for i in range(MAX_DISPLAY_LINES):
-            RawTerminal.erase_whole_line()
+            erase_whole_line()
             if i in range(len(shown_line_boundaries)):
                 low, high = shown_line_boundaries[i]
                 for idx in range(low, high):
-                    if self._word_states[idx] == WordState.TYPING_WELL:
-                        RawTerminal.set_yellow_font()
-                    elif self._word_states[idx] == WordState.TYPING_WRONG:
-                        RawTerminal.set_red_font()
-                    elif self._word_states[idx] == WordState.TYPED_WELL:
-                        RawTerminal.set_green_font()
-                    elif self._word_states[idx] == WordState.TYPED_WRONG:
-                        RawTerminal.set_red_font()
-                    else:
-                        RawTerminal.set_default_font()
+                    set_text_color(
+                        {
+                            WordState.TYPING_WELL: TextColor.YELLOW,
+                            WordState.TYPING_WRONG: TextColor.RED,
+                            WordState.TYPED_WELL: TextColor.GREEN,
+                            WordState.TYPED_WRONG: TextColor.RED,
+                        }.get(self._word_states[idx], TextColor.DEFAULT)
+                    )
                     print(self._words[idx], end="")
                     print(end=" ")
             print()
-        RawTerminal.erase_whole_line()
+        erase_whole_line()
         print("--- ({} s left) ---".format(self._time_left))
-        RawTerminal.erase_whole_line()
+        erase_whole_line()
         print(self._word_input, end="", flush=True)
 
     def render_stats(self) -> None:
@@ -198,40 +202,40 @@ class GameState:
             else 1
         )
 
-        RawTerminal.erase_whole_line()
+        erase_whole_line()
 
         print("CPS (chars per second): {:.1f}".format(cps))
-        RawTerminal.erase_whole_line()
+        erase_whole_line()
         print("WPM (words per minute): {:.1f}".format(wpm))
 
-        RawTerminal.erase_whole_line()
+        erase_whole_line()
         print("Characters typed:       {} (".format(total_characters), end="")
-        RawTerminal.set_green_font()
+        set_text_color(TextColor.GREEN)
         print(correct_characters, end="|")
-        RawTerminal.set_red_font()
+        set_text_color(TextColor.RED)
         print(wrong_characters, end="")
-        RawTerminal.set_default_font()
+        set_text_color(TextColor.DEFAULT)
         print(")")
 
-        RawTerminal.erase_whole_line()
+        erase_whole_line()
         print("Keys pressed:           {}".format(self._keys_pressed))
-        RawTerminal.erase_whole_line()
+        erase_whole_line()
         print("Accuracy:               {:.1%}".format(accuracy))
 
-        RawTerminal.erase_whole_line()
+        erase_whole_line()
         print(r"Correct words:          ", end="")
-        RawTerminal.set_green_font()
+        set_text_color(TextColor.GREEN)
         print(len(correct_words), end="")
-        RawTerminal.set_default_font()
+        set_text_color(TextColor.DEFAULT)
         print()
 
-        RawTerminal.erase_whole_line()
+        erase_whole_line()
         print(r"Wrong words:            ", end="")
-        RawTerminal.set_red_font()
+        set_text_color(TextColor.RED)
         print(len(wrong_words), end="")
-        RawTerminal.set_default_font()
+        set_text_color(TextColor.DEFAULT)
 
-        RawTerminal.erase_whole_line()
+        erase_whole_line()
         print()
 
 
@@ -241,7 +245,7 @@ class Game:
     def __init__(
         self,
         loop: asyncio.events.AbstractEventLoop,
-        input_queue: asyncio.Queue[T.Optional[str]],
+        input_handler: TerminalInputHandler,
         corpus_path: Path,
         max_time: int,
         rigorous_spaces: bool,
@@ -249,7 +253,7 @@ class Game:
         """Initialize self.
 
         :param loop: the event loop.
-        :param input_queue: queue that receives user keypresses
+        :param input_handler: input handler instance.
         :param corpus_path: path to the corpus.
         :param max_time: maximum time to run the game.
         :param rigorous_spaces: whether a bad space means a mistake.
@@ -267,7 +271,7 @@ class Game:
         self._rigorous_spaces = rigorous_spaces
 
         self._loop = loop
-        self._input_queue = input_queue
+        self._input_handler = input_handler
 
     async def run(self) -> None:
         """Run the game."""
@@ -279,13 +283,13 @@ class Game:
                 await asyncio.sleep(0.5)
                 state.tick()
                 state.render()
-            await self._input_queue.put(None)
+            await self._input_handler.input_queue.put(None)
 
         timer_future: T.Optional[T.Awaitable[T.Any]] = None
 
         while not state.is_finished:
             state.render()
-            key = await self._input_queue.get()
+            key = await self._input_handler.input_queue.get()
 
             if key is None:
                 state.finish()

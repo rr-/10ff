@@ -3,7 +3,7 @@ import argparse
 import asyncio
 
 from tenff.game import Game
-from tenff.raw_terminal import RawTerminal
+from tenff.terminal import TerminalInputHandler
 from tenff.util import CORPORA_PATH, get_corpus_path
 
 DEFAULT_TIME = 60
@@ -87,22 +87,19 @@ def main() -> None:
                 print(path.stem)
         return
 
-    raw_terminal = RawTerminal(loop)
-    try:
-        raw_terminal.enable()
+    input_handler = TerminalInputHandler(loop)
+    with input_handler.enable_raw_terminal():
         corpus_path = get_corpus_path(args.corpus)
 
         game = Game(
             loop,
-            raw_terminal.input_queue,
+            input_handler,
             corpus_path,
             args.time,
             args.rigorous_spaces,
         )
         loop.run_until_complete(game.run())
         loop.close()
-    finally:
-        raw_terminal.disable()
 
 
 if __name__ == "__main__":
