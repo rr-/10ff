@@ -42,19 +42,19 @@ class GameState:
         :param words: full list of words to type for this game.
         :param max_time: maximum time for this game.
         """
-        self._words = words
-        self._current_word = 0
-        self._word_input = ""
-        self._word_states = [WordState.TYPING_WELL] + [
+        self.words = words
+        self.current_word = 0
+        self.word_input = ""
+        self.word_states = [WordState.TYPING_WELL] + [
             WordState.UNTYPED for _word in words[1:]
         ]
-        self._line_boundaries = divide_lines(words, MAX_COLUMNS)
-        self._time_left = max_time
-        self._start_time = time.time()
-        self._end_time: T.Optional[float] = None
-        self._keys_pressed = 0
-        self._current_word_keys_pressed = 0
-        self._first_render = True
+        self.line_boundaries = divide_lines(words, MAX_COLUMNS)
+        self.time_left = max_time
+        self.start_time = time.time()
+        self.end_time: T.Optional[float] = None
+        self.keys_pressed = 0
+        self.current_word_keys_pressed = 0
+        self.first_render = True
 
     @property
     def is_finished(self) -> bool:
@@ -62,97 +62,97 @@ class GameState:
 
         :return: whether the game has ended.
         """
-        return self._end_time is not None
+        return self.end_time is not None
 
     @property
-    def _current_line(self) -> int:
+    def current_line(self) -> int:
         """Current line within all of the game lines."""
-        for i, (low, high) in enumerate(self._line_boundaries):
-            if self._current_word in range(low, high):
+        for i, (low, high) in enumerate(self.line_boundaries):
+            if self.current_word in range(low, high):
                 return i
-        return len(self._line_boundaries) - 1
+        return len(self.line_boundaries) - 1
 
     @property
-    def _shown_line_boundaries(self) -> T.Iterable[tuple[int, int]]:
+    def shown_line_boundaries(self) -> T.Iterable[tuple[int, int]]:
         """Line boundaries within viewport.
 
         :return: list of tuples with low and high indices of the game words
                  to render.
         """
-        current = self._current_line
+        current = self.current_line
         for i in range(MAX_DISPLAY_LINES):
-            if current + i in range(len(self._line_boundaries)):
-                yield self._line_boundaries[current + i]
+            if current + i in range(len(self.line_boundaries)):
+                yield self.line_boundaries[current + i]
 
     def start(self) -> None:
         """Start the game timer."""
-        self._start_time = time.time()
+        self.start_time = time.time()
 
     def backspace_pressed(self) -> None:
         """Delete the last character."""
-        self._word_input = self._word_input[:-1]
-        self._current_word_keys_pressed += 1
-        self._update_typing_status()
+        self.word_input = self.word_input[:-1]
+        self.current_word_keys_pressed += 1
+        self.update_typing_status()
 
     def word_backspace_pressed(self) -> None:
         """Delete the last word."""
-        self._word_input = ""
-        self._current_word_keys_pressed += 1
-        self._update_typing_status()
+        self.word_input = ""
+        self.current_word_keys_pressed += 1
+        self.update_typing_status()
 
     def key_pressed(self, key: str) -> None:
         """Append the given key to the current word.
 
         :param key: key the user pressed.
         """
-        self._word_input += key
-        self._current_word_keys_pressed += 1
-        self._update_typing_status()
+        self.word_input += key
+        self.current_word_keys_pressed += 1
+        self.update_typing_status()
 
     def word_finished(self) -> None:
         """Mark the word as finished and either end the game or move on to the
         next word.
         """
-        self._keys_pressed += self._current_word_keys_pressed + 1
-        self._current_word_keys_pressed = 0
-        self._word_states[self._current_word] = (
+        self.keys_pressed += self.current_word_keys_pressed + 1
+        self.current_word_keys_pressed = 0
+        self.word_states[self.current_word] = (
             WordState.TYPED_WELL
-            if self._words[self._current_word] == self._word_input
+            if self.words[self.current_word] == self.word_input
             else WordState.TYPED_WRONG
         )
-        self._word_input = ""
+        self.word_input = ""
 
-        self._current_word += 1
-        if self._current_word == len(self._words):
+        self.current_word += 1
+        if self.current_word == len(self.words):
             self.finish()
             return
 
-        self._word_states[self._current_word] = WordState.TYPING_WELL
+        self.word_states[self.current_word] = WordState.TYPING_WELL
 
     def finish(self) -> None:
         """Stop the game."""
-        self._end_time = time.time()
+        self.end_time = time.time()
 
     def tick(self) -> None:
         """Decrease time left by 1 second."""
-        self._time_left -= 1
-        if self._time_left == 0:
+        self.time_left -= 1
+        if self.time_left == 0:
             self.finish()
 
-    def _update_typing_status(self) -> None:
+    def update_typing_status(self) -> None:
         """Update the interal list of word states."""
-        self._word_states[self._current_word] = (
+        self.word_states[self.current_word] = (
             WordState.TYPING_WELL
-            if self._words[self._current_word].startswith(self._word_input)
+            if self.words[self.current_word].startswith(self.word_input)
             else WordState.TYPING_WRONG
         )
 
     def render(self) -> None:
         """Render the game text up to MAX_DISPLAY_LINES together with a timer."""
-        shown_line_boundaries = list(self._shown_line_boundaries)
-        if not self._first_render:
+        shown_line_boundaries = list(self.shown_line_boundaries)
+        if not self.first_render:
             move_cursor_up(MAX_DISPLAY_LINES + 1)
-        self._first_render = False
+        self.first_render = False
 
         for i in range(MAX_DISPLAY_LINES):
             erase_whole_line()
@@ -165,41 +165,39 @@ class GameState:
                             WordState.TYPING_WRONG: TextColor.RED,
                             WordState.TYPED_WELL: TextColor.GREEN,
                             WordState.TYPED_WRONG: TextColor.RED,
-                        }.get(self._word_states[idx], TextColor.DEFAULT)
+                        }.get(self.word_states[idx], TextColor.DEFAULT)
                     )
-                    print(self._words[idx], end="")
+                    print(self.words[idx], end="")
                     print(end=" ")
             print()
         erase_whole_line()
-        print("--- ({} s left) ---".format(self._time_left))
+        print("--- ({} s left) ---".format(self.time_left))
         erase_whole_line()
-        print(self._word_input, end="", flush=True)
+        print(self.word_input, end="", flush=True)
 
     def render_stats(self) -> None:
         """Render final game statistics."""
         correct_words = [
             word
-            for word, status in zip(self._words, self._word_states)
+            for word, status in zip(self.words, self.word_states)
             if status == WordState.TYPED_WELL
         ]
         wrong_words = [
             word
-            for word, status in zip(self._words, self._word_states)
+            for word, status in zip(self.words, self.word_states)
             if status == WordState.TYPED_WRONG
         ]
         correct_characters = sum(len(word) + 1 for word in correct_words)
         wrong_characters = sum(len(word) + 1 for word in wrong_words)
         total_characters = correct_characters + wrong_characters
 
-        if self._end_time is None:
+        if self.end_time is None:
             cps = 0.0
         else:
-            cps = correct_characters / (self._end_time - self._start_time)
+            cps = correct_characters / (self.end_time - self.start_time)
         wpm = cps * 60.0 / AVG_WORD_LENGTH
         accuracy = (
-            correct_characters / self._keys_pressed
-            if self._keys_pressed
-            else 1
+            correct_characters / self.keys_pressed if self.keys_pressed else 1
         )
 
         erase_whole_line()
@@ -218,7 +216,7 @@ class GameState:
         print(")")
 
         erase_whole_line()
-        print("Keys pressed:           {}".format(self._keys_pressed))
+        print("Keys pressed:           {}".format(self.keys_pressed))
         erase_whole_line()
         print("Accuracy:               {:.1%}".format(accuracy))
 
@@ -266,16 +264,16 @@ class Game:
             if word
         ]
 
-        self._max_time = max_time
-        self._all_words = [random.choice(corpus) for _i in range(SAMPLE_SIZE)]
-        self._rigorous_spaces = rigorous_spaces
+        self.max_time = max_time
+        self.all_words = [random.choice(corpus) for _i in range(SAMPLE_SIZE)]
+        self.rigorous_spaces = rigorous_spaces
 
-        self._loop = loop
-        self._input_handler = input_handler
+        self.loop = loop
+        self.input_handler = input_handler
 
     async def run(self) -> None:
         """Run the game."""
-        state = GameState(self._all_words, self._max_time)
+        state = GameState(self.all_words, self.max_time)
 
         async def timer() -> None:
             while not state.is_finished:
@@ -283,13 +281,13 @@ class Game:
                 await asyncio.sleep(0.5)
                 state.tick()
                 state.render()
-            await self._input_handler.input_queue.put(None)
+            await self.input_handler.input_queue.put(None)
 
         timer_future: T.Optional[T.Awaitable[T.Any]] = None
 
         while not state.is_finished:
             state.render()
-            key = await self._input_handler.input_queue.get()
+            key = await self.input_handler.input_queue.get()
 
             if key is None:
                 state.finish()
@@ -297,7 +295,7 @@ class Game:
 
             if not timer_future:
                 state.start()
-                timer_future = asyncio.ensure_future(timer(), loop=self._loop)
+                timer_future = asyncio.ensure_future(timer(), loop=self.loop)
 
             if key == "\x03":
                 state.finish()
@@ -306,7 +304,7 @@ class Game:
             elif key in "\x17":
                 state.word_backspace_pressed()
             elif re.match(r"\s", key):
-                if state._word_input != "" or self._rigorous_spaces:
+                if state.word_input != "" or self.rigorous_spaces:
                     state.word_finished()
             elif len(key) > 1 or ord(key) >= 32:
                 state.key_pressed(key)
