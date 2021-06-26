@@ -53,9 +53,6 @@ class RawTerminal:
         termios.tcsetattr(self._fd, termios.TCSADRAIN, self._old_settings)
 
     def _got_input(self, *args, **kwargs):
-        with open("/tmp/test.txt", "a") as handle:
-            print(*args, **kwargs, file=handle)
-
         keys = b""
         ch = os.read(self._fd, 1)
         while ch != None and len(ch) > 0:
