@@ -77,7 +77,7 @@ class GameState:
         self.keys_pressed = 0
         self.current_word_keys_pressed = 0
         self.first_render = True
-        self.timer_future: T.Optional[T.Awaitable[T.Any]] = None
+        self.timer_future: T.Optional[asyncio.Task[None]] = None
 
     @property
     def is_started(self) -> bool:
@@ -147,6 +147,8 @@ class GameExecutor:
     def finish(self) -> None:
         """Stop the game timer."""
         self.state.end_time = time.time()
+        if self.state.timer_future is not None:
+            self.state.timer_future.cancel()
 
     def tick(self) -> None:
         """Decrease time left by 1 second."""
@@ -182,7 +184,10 @@ class GameExecutor:
     async def timer(self) -> None:
         """Track the game progress."""
         while not self.state.is_finished:
-            await asyncio.sleep(1)
+            try:
+                await asyncio.sleep(1)
+            except asyncio.CancelledError:
+                break
             self.tick()
             self.render()
 
@@ -353,5 +358,8 @@ async def run_game(
             executor.consume_key(key)
 
     assert state.timer_future is not None
-    await state.timer_future
+    try:
+        await state.timer_future
+    except asyncio.CancelledError:
+        pass
     executor.render_stats()
