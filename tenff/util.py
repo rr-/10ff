@@ -1,4 +1,5 @@
 """Miscellaneous utility functions."""
+import re
 from pathlib import Path
 
 CORPORA_PATH = Path(__file__).parent / "data"
@@ -15,6 +16,19 @@ def get_corpus_path(corpus: str) -> Path:
     if corpus_path.exists():
         return corpus_path
     return Path(corpus)
+
+
+def parse_corpus(corpus_path: Path) -> list[str]:
+    """Read given path and return all words within it.
+
+    :param corpus_path: path to the corpus.
+    :return: list of words within the file.
+    """
+    return [
+        word
+        for word in re.split(r"\s+", corpus_path.read_text(encoding="utf-8"))
+        if word
+    ]
 
 
 def divide_lines(words: list[str], max_columns: int) -> list[tuple[int, int]]:

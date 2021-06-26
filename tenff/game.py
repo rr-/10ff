@@ -6,7 +6,6 @@ import shutil
 import time
 import typing as T
 from enum import IntEnum
-from pathlib import Path
 
 from tenff.terminal import (
     TerminalInputHandler,
@@ -244,7 +243,7 @@ class Game:
         self,
         loop: asyncio.events.AbstractEventLoop,
         input_handler: TerminalInputHandler,
-        corpus_path: Path,
+        corpus: list[str],
         max_time: int,
         rigorous_spaces: bool,
     ) -> None:
@@ -252,18 +251,10 @@ class Game:
 
         :param loop: the event loop.
         :param input_handler: input handler instance.
-        :param corpus_path: path to the corpus.
+        :param corpus: list of words to choose the game words from.
         :param max_time: maximum time to run the game.
         :param rigorous_spaces: whether a bad space means a mistake.
         """
-        corpus = [
-            word
-            for word in re.split(
-                r"\s+", corpus_path.read_text(encoding="utf-8")
-            )
-            if word
-        ]
-
         self.max_time = max_time
         self.all_words = [random.choice(corpus) for _i in range(SAMPLE_SIZE)]
         self.rigorous_spaces = rigorous_spaces

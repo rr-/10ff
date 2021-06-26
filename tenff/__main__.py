@@ -4,7 +4,7 @@ import asyncio
 
 from tenff.game import Game
 from tenff.terminal import TerminalInputHandler
-from tenff.util import CORPORA_PATH, get_corpus_path
+from tenff.util import CORPORA_PATH, get_corpus_path, parse_corpus
 
 DEFAULT_TIME = 60
 PROLOG = (
@@ -90,11 +90,12 @@ def main() -> None:
     input_handler = TerminalInputHandler(loop)
     with input_handler.enable_raw_terminal():
         corpus_path = get_corpus_path(args.corpus)
+        corpus = parse_corpus(corpus_path)
 
         game = Game(
             loop,
             input_handler,
-            corpus_path,
+            corpus,
             args.time,
             args.rigorous_spaces,
         )
