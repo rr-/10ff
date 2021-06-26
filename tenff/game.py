@@ -5,6 +5,7 @@ import re
 import shutil
 import time
 import typing as T
+from enum import IntEnum
 from pathlib import Path
 
 from tenff.raw_terminal import RawTerminal
@@ -15,11 +16,15 @@ MAX_DISPLAY_LINES = 2
 SAMPLE_SIZE = 1000
 AVG_WORD_LENGTH = 5
 
-STATUS_UNTYPED = 0
-STATUS_TYPING_WELL = 1
-STATUS_TYPING_WRONG = 2
-STATUS_TYPED_WELL = 3
-STATUS_TYPED_WRONG = 4
+
+class WordState(IntEnum):
+    """Word state."""
+
+    UNTYPED = 0
+    TYPING_WELL = 1
+    TYPING_WRONG = 2
+    TYPED_WELL = 3
+    TYPED_WRONG = 4
 
 
 class GameState:
@@ -34,8 +39,8 @@ class GameState:
         self._words = words
         self._current_word = 0
         self._word_input = ""
-        self._word_states = [STATUS_TYPING_WELL] + [
-            STATUS_UNTYPED for _word in words[1:]
+        self._word_states = [WordState.TYPING_WELL] + [
+            WordState.UNTYPED for _word in words[1:]
         ]
         self._line_boundaries = divide_lines(words, MAX_COLUMNS)
         self._time_left = max_time
@@ -105,9 +110,9 @@ class GameState:
         self._keys_pressed += self._current_word_keys_pressed + 1
         self._current_word_keys_pressed = 0
         self._word_states[self._current_word] = (
-            STATUS_TYPED_WELL
+            WordState.TYPED_WELL
             if self._words[self._current_word] == self._word_input
-            else STATUS_TYPED_WRONG
+            else WordState.TYPED_WRONG
         )
         self._word_input = ""
 
@@ -116,7 +121,7 @@ class GameState:
             self.finish()
             return
 
-        self._word_states[self._current_word] = STATUS_TYPING_WELL
+        self._word_states[self._current_word] = WordState.TYPING_WELL
 
     def finish(self) -> None:
         """Stop the game."""
@@ -131,14 +136,13 @@ class GameState:
     def _update_typing_status(self) -> None:
         """Update the interal list of word states."""
         self._word_states[self._current_word] = (
-            STATUS_TYPING_WELL
+            WordState.TYPING_WELL
             if self._words[self._current_word].startswith(self._word_input)
-            else STATUS_TYPING_WRONG
+            else WordState.TYPING_WRONG
         )
 
     def render(self) -> None:
-        """Render the game text up to MAX_DISPLAY_LINES together with a timer.
-        """
+        """Render the game text up to MAX_DISPLAY_LINES together with a timer."""
         shown_line_boundaries = list(self._shown_line_boundaries)
         if not self._first_render:
             RawTerminal.move_cursor_up(MAX_DISPLAY_LINES + 1)
@@ -149,13 +153,13 @@ class GameState:
             if i in range(len(shown_line_boundaries)):
                 low, high = shown_line_boundaries[i]
                 for idx in range(low, high):
-                    if self._word_states[idx] == STATUS_TYPING_WELL:
+                    if self._word_states[idx] == WordState.TYPING_WELL:
                         RawTerminal.set_yellow_font()
-                    elif self._word_states[idx] == STATUS_TYPING_WRONG:
+                    elif self._word_states[idx] == WordState.TYPING_WRONG:
                         RawTerminal.set_red_font()
-                    elif self._word_states[idx] == STATUS_TYPED_WELL:
+                    elif self._word_states[idx] == WordState.TYPED_WELL:
                         RawTerminal.set_green_font()
-                    elif self._word_states[idx] == STATUS_TYPED_WRONG:
+                    elif self._word_states[idx] == WordState.TYPED_WRONG:
                         RawTerminal.set_red_font()
                     else:
                         RawTerminal.set_default_font()
@@ -172,12 +176,12 @@ class GameState:
         correct_words = [
             word
             for word, status in zip(self._words, self._word_states)
-            if status == STATUS_TYPED_WELL
+            if status == WordState.TYPED_WELL
         ]
         wrong_words = [
             word
             for word, status in zip(self._words, self._word_states)
-            if status == STATUS_TYPED_WRONG
+            if status == WordState.TYPED_WRONG
         ]
         correct_characters = sum(len(word) + 1 for word in correct_words)
         wrong_characters = sum(len(word) + 1 for word in wrong_words)
