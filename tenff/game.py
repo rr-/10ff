@@ -43,7 +43,7 @@ class GameSettings:
 
 
 class GameState:
-    """The game state and state manipulation methods."""
+    """The game state. Does not manipulate itself."""
 
     def __init__(self, words: list[str], max_time: int) -> None:
         """Initialize self.
@@ -59,11 +59,20 @@ class GameState:
         ]
         self.line_boundaries = divide_lines(words, MAX_COLUMNS)
         self.time_left = max_time
-        self.start_time = time.time()
+        self.start_time: T.Optional[float] = None
         self.end_time: T.Optional[float] = None
         self.keys_pressed = 0
         self.current_word_keys_pressed = 0
         self.first_render = True
+        self.timer_future: T.Optional[T.Awaitable[T.Any]] = None
+
+    @property
+    def is_started(self) -> bool:
+        """Return whether the game has run out of time.
+
+        :return: whether the game has ended.
+        """
+        return self.start_time is not None
 
     @property
     def is_finished(self) -> bool:
@@ -93,20 +102,92 @@ class GameState:
             if current + i in range(len(self.line_boundaries)):
                 yield self.line_boundaries[current + i]
 
+
+class GameExecutor:
+    """Game executor class. Manipulates game state."""
+
+    def __init__(
+        self,
+        loop: asyncio.events.AbstractEventLoop,
+        state: GameState,
+        settings: GameSettings,
+    ) -> None:
+        """Initialize self.
+
+        :param loop: the event loop.
+        :param state: game state.
+        :param settings: game settings.
+        """
+        self.loop = loop
+        self.state = state
+        self.settings = settings
+
     def start(self) -> None:
         """Start the game timer."""
-        self.start_time = time.time()
+        self.state.start_time = time.time()
+
+    def finish(self) -> None:
+        """Stop the game timer."""
+        self.state.end_time = time.time()
+
+    def tick(self) -> None:
+        """Decrease time left by 1 second."""
+        self.state.time_left -= 1
+        if self.state.time_left == 0:
+            self.finish()
+
+    def consume_key(self, key: str) -> bool:
+        """Consume user key.
+
+        :param key: key to handle.
+        """
+        if key == "\x03":  # ^C
+            self.finish()
+        elif key == "\x7F":  # ^H
+            self.backspace_pressed()
+        elif key == "\x17":  # ^W
+            self.word_backspace_pressed()
+        elif re.match(r"\s", key):
+            if self.state.word_input != "" or self.settings.rigorous_spaces:
+                self.word_finished()
+        elif len(key) > 1 or ord(key) >= 32:
+            self.key_pressed(key)
+
+        if not self.state.is_started:
+            self.start()
+            self.state.timer_future = asyncio.ensure_future(
+                self.timer(), loop=self.loop
+            )
+
+        return True
+
+    async def timer(self) -> None:
+        """Track the game progress."""
+        while not self.state.is_finished:
+            await asyncio.sleep(1)
+            self.tick()
+            self.render()
+
+    def update_typing_status(self) -> None:
+        """Update the interal list of word states."""
+        self.state.word_states[self.state.current_word] = (
+            WordState.TYPING_WELL
+            if self.state.words[self.state.current_word].startswith(
+                self.state.word_input
+            )
+            else WordState.TYPING_WRONG
+        )
 
     def backspace_pressed(self) -> None:
         """Delete the last character."""
-        self.word_input = self.word_input[:-1]
-        self.current_word_keys_pressed += 1
+        self.state.word_input = self.state.word_input[:-1]
+        self.state.current_word_keys_pressed += 1
         self.update_typing_status()
 
     def word_backspace_pressed(self) -> None:
         """Delete the last word."""
-        self.word_input = ""
-        self.current_word_keys_pressed += 1
+        self.state.word_input = ""
+        self.state.current_word_keys_pressed += 1
         self.update_typing_status()
 
     def key_pressed(self, key: str) -> None:
@@ -114,54 +195,37 @@ class GameState:
 
         :param key: key the user pressed.
         """
-        self.word_input += key
-        self.current_word_keys_pressed += 1
+        self.state.word_input += key
+        self.state.current_word_keys_pressed += 1
         self.update_typing_status()
 
     def word_finished(self) -> None:
         """Mark the word as finished and either end the game or move on to the
         next word.
         """
-        self.keys_pressed += self.current_word_keys_pressed + 1
-        self.current_word_keys_pressed = 0
-        self.word_states[self.current_word] = (
+        self.state.keys_pressed += self.state.current_word_keys_pressed + 1
+        self.state.current_word_keys_pressed = 0
+        self.state.word_states[self.state.current_word] = (
             WordState.TYPED_WELL
-            if self.words[self.current_word] == self.word_input
+            if self.state.words[self.state.current_word]
+            == self.state.word_input
             else WordState.TYPED_WRONG
         )
-        self.word_input = ""
+        self.state.word_input = ""
 
-        self.current_word += 1
-        if self.current_word == len(self.words):
+        self.state.current_word += 1
+        if self.state.current_word == len(self.state.words):
             self.finish()
             return
 
-        self.word_states[self.current_word] = WordState.TYPING_WELL
-
-    def finish(self) -> None:
-        """Stop the game."""
-        self.end_time = time.time()
-
-    def tick(self) -> None:
-        """Decrease time left by 1 second."""
-        self.time_left -= 1
-        if self.time_left == 0:
-            self.finish()
-
-    def update_typing_status(self) -> None:
-        """Update the interal list of word states."""
-        self.word_states[self.current_word] = (
-            WordState.TYPING_WELL
-            if self.words[self.current_word].startswith(self.word_input)
-            else WordState.TYPING_WRONG
-        )
+        self.state.word_states[self.state.current_word] = WordState.TYPING_WELL
 
     def render(self) -> None:
         """Render the game text up to MAX_DISPLAY_LINES together with a timer."""
-        shown_line_boundaries = list(self.shown_line_boundaries)
-        if not self.first_render:
+        shown_line_boundaries = list(self.state.shown_line_boundaries)
+        if not self.state.first_render:
             move_cursor_up(MAX_DISPLAY_LINES + 1)
-        self.first_render = False
+        self.state.first_render = False
 
         for i in range(MAX_DISPLAY_LINES):
             erase_whole_line()
@@ -174,39 +238,43 @@ class GameState:
                             WordState.TYPING_WRONG: TextColor.RED,
                             WordState.TYPED_WELL: TextColor.GREEN,
                             WordState.TYPED_WRONG: TextColor.RED,
-                        }.get(self.word_states[idx], TextColor.DEFAULT)
+                        }.get(self.state.word_states[idx], TextColor.DEFAULT)
                     )
-                    print(self.words[idx], end="")
+                    print(self.state.words[idx], end="")
                     print(end=" ")
             print()
         erase_whole_line()
-        print("--- ({} s left) ---".format(self.time_left))
+        print("--- ({} s left) ---".format(self.state.time_left))
         erase_whole_line()
-        print(self.word_input, end="", flush=True)
+        print(self.state.word_input, end="", flush=True)
 
     def render_stats(self) -> None:
         """Render final game statistics."""
         correct_words = [
             word
-            for word, status in zip(self.words, self.word_states)
+            for word, status in zip(self.state.words, self.state.word_states)
             if status == WordState.TYPED_WELL
         ]
         wrong_words = [
             word
-            for word, status in zip(self.words, self.word_states)
+            for word, status in zip(self.state.words, self.state.word_states)
             if status == WordState.TYPED_WRONG
         ]
         correct_characters = sum(len(word) + 1 for word in correct_words)
         wrong_characters = sum(len(word) + 1 for word in wrong_words)
         total_characters = correct_characters + wrong_characters
 
-        if self.end_time is None:
+        if self.state.end_time is None or self.state.start_time is None:
             cps = 0.0
         else:
-            cps = correct_characters / (self.end_time - self.start_time)
+            cps = correct_characters / (
+                self.state.end_time - self.state.start_time
+            )
         wpm = cps * 60.0 / AVG_WORD_LENGTH
         accuracy = (
-            correct_characters / self.keys_pressed if self.keys_pressed else 1
+            correct_characters / self.state.keys_pressed
+            if self.state.keys_pressed
+            else 1
         )
 
         erase_whole_line()
@@ -225,7 +293,7 @@ class GameState:
         print(")")
 
         erase_whole_line()
-        print("Keys pressed:           {}".format(self.keys_pressed))
+        print("Keys pressed:           {}".format(self.state.keys_pressed))
         erase_whole_line()
         print("Accuracy:               {:.1%}".format(accuracy))
 
@@ -251,7 +319,7 @@ async def run_game(
     input_handler: TerminalInputHandler,
     settings: GameSettings,
 ) -> None:
-    """Run the game.
+    """Run the game loop.
 
     :param loop: the event loop.
     :param input_handler: input handler instance.
@@ -259,41 +327,17 @@ async def run_game(
     """
     all_words = [random.choice(settings.corpus) for _i in range(SAMPLE_SIZE)]
     state = GameState(all_words, settings.max_time)
-
-    async def timer() -> None:
-        while not state.is_finished:
-            await asyncio.sleep(0.5)
-            await asyncio.sleep(0.5)
-            state.tick()
-            state.render()
-        await input_handler.input_queue.put(None)
-
-    timer_future: T.Optional[T.Awaitable[T.Any]] = None
+    executor = GameExecutor(loop, state, settings)
 
     while not state.is_finished:
-        state.render()
-        key = await input_handler.input_queue.get()
+        executor.render()
+        try:
+            key = input_handler.input_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            await asyncio.sleep(0.05)
+        else:
+            executor.consume_key(key)
 
-        if key is None:
-            state.finish()
-            break
-
-        if not timer_future:
-            state.start()
-            timer_future = asyncio.ensure_future(timer(), loop=loop)
-
-        if key == "\x03":
-            state.finish()
-        elif key == "\x7F":
-            state.backspace_pressed()
-        elif key in "\x17":
-            state.word_backspace_pressed()
-        elif re.match(r"\s", key):
-            if state.word_input != "" or settings.rigorous_spaces:
-                state.word_finished()
-        elif len(key) > 1 or ord(key) >= 32:
-            state.key_pressed(key)
-
-    assert timer_future is not None
-    await timer_future
-    state.render_stats()
+    assert state.timer_future is not None
+    await state.timer_future
+    executor.render_stats()
