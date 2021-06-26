@@ -201,8 +201,10 @@ class GameState:
         RawTerminal.erase_whole_line()
 
         print("CPS (chars per second): {:.1f}".format(cps))
+        RawTerminal.erase_whole_line()
         print("WPM (words per minute): {:.1f}".format(wpm))
 
+        RawTerminal.erase_whole_line()
         print("Characters typed:       {} (".format(total_characters), end="")
         RawTerminal.set_green_font()
         print(correct_characters, end="|")
@@ -211,19 +213,25 @@ class GameState:
         RawTerminal.set_default_font()
         print(")")
 
+        RawTerminal.erase_whole_line()
         print("Keys pressed:           {}".format(self._keys_pressed))
+        RawTerminal.erase_whole_line()
         print("Accuracy:               {:.1%}".format(accuracy))
 
+        RawTerminal.erase_whole_line()
         print(r"Correct words:          ", end="")
         RawTerminal.set_green_font()
         print(len(correct_words), end="")
         RawTerminal.set_default_font()
         print()
 
+        RawTerminal.erase_whole_line()
         print(r"Wrong words:            ", end="")
         RawTerminal.set_red_font()
         print(len(wrong_words), end="")
         RawTerminal.set_default_font()
+
+        RawTerminal.erase_whole_line()
         print()
 
 
@@ -233,6 +241,7 @@ class Game:
     def __init__(
         self,
         loop: asyncio.events.AbstractEventLoop,
+        input_queue: asyncio.Queue[T.Optional[str]],
         corpus_path: Path,
         max_time: int,
         rigorous_spaces: bool,
@@ -240,6 +249,7 @@ class Game:
         """Initialize self.
 
         :param loop: the event loop.
+        :param input_queue: queue that receives user keypresses
         :param corpus_path: path to the corpus.
         :param max_time: maximum time to run the game.
         :param rigorous_spaces: whether a bad space means a mistake.
@@ -257,8 +267,7 @@ class Game:
         self._rigorous_spaces = rigorous_spaces
 
         self._loop = loop
-        self._raw_terminal = RawTerminal(loop)
-        self._raw_terminal.enable()
+        self._input_queue = input_queue
 
     async def run(self) -> None:
         """Run the game."""
@@ -269,18 +278,14 @@ class Game:
                 await asyncio.sleep(0.5)
                 await asyncio.sleep(0.5)
                 state.tick()
-                self._raw_terminal.disable()
                 state.render()
-                self._raw_terminal.enable()
-            await self._raw_terminal.input_queue.put(None)
+            await self._input_queue.put(None)
 
         timer_future: T.Optional[T.Awaitable[T.Any]] = None
 
         while not state.is_finished:
-            self._raw_terminal.disable()
             state.render()
-            self._raw_terminal.enable()
-            key = await self._raw_terminal.input_queue.get()
+            key = await self._input_queue.get()
 
             if key is None:
                 state.finish()
@@ -304,5 +309,4 @@ class Game:
 
         assert timer_future is not None
         await timer_future
-        self._raw_terminal.disable()
         state.render_stats()
