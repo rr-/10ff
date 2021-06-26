@@ -1,13 +1,12 @@
-from setuptools import setup, find_packages
-
+from setuptools import find_packages, setup
 
 setup(
-    author='rr-',
-    author_email='rr-@sakuya.pl',
-    name='10ff',
-    long_description='A certain typing contest site spin-off in CLI',
+    author="rr-",
+    author_email="rr-@sakuya.pl",
+    name="tenff",
+    long_description="A certain typing contest site spin-off in CLI",
     packages=find_packages(),
-    entry_points={'console_scripts': ['10ff = 10ff.__main__:main']},
-    package_dir={'10ff': '10ff'},
-    package_data={'10ff': ['data/*.*']})
-
+    entry_points={"console_scripts": ["10ff = tenff.__main__:main"]},
+    package_dir={"tenff": "tenff"},
+    package_data={"tenff": ["data/*.*"]},
+)

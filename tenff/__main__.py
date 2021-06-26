@@ -1,8 +1,8 @@
 import argparse
 import asyncio
 
-from .game import Game
-from .util import CORPORA_PATH, get_corpus_path
+from tenff.game import Game
+from tenff.util import CORPORA_PATH, get_corpus_path
 
 DEFAULT_TIME = 60
 PROLOG = (

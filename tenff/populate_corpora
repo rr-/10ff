@@ -6,8 +6,8 @@ import typing as T
 import lxml.html
 import requests
 
-tenff = __import__("10ff.util")
-CORPORA_PATH = tenff.util.CORPORA_PATH
+from tenff.util import CORPORA_PATH
+
 MIN_ATTEMPTS = 10
 
 

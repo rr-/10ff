@@ -4,8 +4,8 @@ import re
 import shutil
 import time
 
-from .raw_terminal import RawTerminal
-from .util import divide_lines
+from tenff.raw_terminal import RawTerminal
+from tenff.util import divide_lines
 
 MAX_COLUMNS = min(shutil.get_terminal_size().columns, 80)
 MAX_LINES = 2

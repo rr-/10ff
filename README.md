@@ -22,5 +22,5 @@ pip install --user .
 ```
 git clone https://github.com/rr-/10ff
 cd 10ff
-python3 -m 10ff
+python3 -m tenff
 ```
