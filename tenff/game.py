@@ -246,66 +246,54 @@ class GameState:
         print()
 
 
-class Game:
-    """Game executor."""
+async def run_game(
+    loop: asyncio.events.AbstractEventLoop,
+    input_handler: TerminalInputHandler,
+    settings: GameSettings,
+) -> None:
+    """Run the game.
 
-    def __init__(
-        self,
-        loop: asyncio.events.AbstractEventLoop,
-        input_handler: TerminalInputHandler,
-        settings: GameSettings,
-    ) -> None:
-        """Initialize self.
+    :param loop: the event loop.
+    :param input_handler: input handler instance.
+    :param settings: game settings.
+    """
+    all_words = [random.choice(settings.corpus) for _i in range(SAMPLE_SIZE)]
+    state = GameState(all_words, settings.max_time)
 
-        :param loop: the event loop.
-        :param input_handler: input handler instance.
-        :param settings: game settings.
-        """
-        self.loop = loop
-        self.input_handler = input_handler
-        self.settings = settings
-
-    async def run(self) -> None:
-        """Run the game."""
-        all_words = [
-            random.choice(self.settings.corpus) for _i in range(SAMPLE_SIZE)
-        ]
-        state = GameState(all_words, self.settings.max_time)
-
-        async def timer() -> None:
-            while not state.is_finished:
-                await asyncio.sleep(0.5)
-                await asyncio.sleep(0.5)
-                state.tick()
-                state.render()
-            await self.input_handler.input_queue.put(None)
-
-        timer_future: T.Optional[T.Awaitable[T.Any]] = None
-
+    async def timer() -> None:
         while not state.is_finished:
+            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.5)
+            state.tick()
             state.render()
-            key = await self.input_handler.input_queue.get()
+        await input_handler.input_queue.put(None)
 
-            if key is None:
-                state.finish()
-                break
+    timer_future: T.Optional[T.Awaitable[T.Any]] = None
 
-            if not timer_future:
-                state.start()
-                timer_future = asyncio.ensure_future(timer(), loop=self.loop)
+    while not state.is_finished:
+        state.render()
+        key = await input_handler.input_queue.get()
 
-            if key == "\x03":
-                state.finish()
-            elif key == "\x7F":
-                state.backspace_pressed()
-            elif key in "\x17":
-                state.word_backspace_pressed()
-            elif re.match(r"\s", key):
-                if state.word_input != "" or self.settings.rigorous_spaces:
-                    state.word_finished()
-            elif len(key) > 1 or ord(key) >= 32:
-                state.key_pressed(key)
+        if key is None:
+            state.finish()
+            break
 
-        assert timer_future is not None
-        await timer_future
-        state.render_stats()
+        if not timer_future:
+            state.start()
+            timer_future = asyncio.ensure_future(timer(), loop=loop)
+
+        if key == "\x03":
+            state.finish()
+        elif key == "\x7F":
+            state.backspace_pressed()
+        elif key in "\x17":
+            state.word_backspace_pressed()
+        elif re.match(r"\s", key):
+            if state.word_input != "" or settings.rigorous_spaces:
+                state.word_finished()
+        elif len(key) > 1 or ord(key) >= 32:
+            state.key_pressed(key)
+
+    assert timer_future is not None
+    await timer_future
+    state.render_stats()

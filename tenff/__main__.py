@@ -2,7 +2,7 @@
 import argparse
 import asyncio
 
-from tenff.game import Game, GameSettings
+from tenff.game import GameSettings, run_game
 from tenff.terminal import TerminalInputHandler
 from tenff.util import CORPORA_PATH, get_corpus_path, parse_corpus
 
@@ -98,8 +98,13 @@ def main() -> None:
             rigorous_spaces=args.rigorous_spaces,
         )
 
-        game = Game(loop, input_handler, settings)
-        loop.run_until_complete(game.run())
+        loop.run_until_complete(
+            run_game(
+                loop,
+                input_handler,
+                settings,
+            )
+        )
         loop.close()
 
 
