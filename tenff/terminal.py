@@ -35,7 +35,7 @@ def set_text_color(color: TextColor) -> None:
             TextColor.RED: "\x1B[31;1m",
             TextColor.GREEN: "\x1B[32;1m",
             TextColor.YELLOW: "\x1B[33;1m",
-            TextColor.DEFAULT: "\x1B[39m",
+            TextColor.DEFAULT: "\x1B[0m",
         }[color]
     )
 
