@@ -5,6 +5,7 @@ import re
 import shutil
 import time
 import typing as T
+from dataclasses import dataclass
 from enum import IntEnum
 
 from tenff.terminal import (
@@ -30,6 +31,15 @@ class WordState(IntEnum):
     TYPING_WRONG = 2
     TYPED_WELL = 3
     TYPED_WRONG = 4
+
+
+@dataclass
+class GameSettings:
+    """Game settings."""
+
+    corpus: list[str]
+    max_time: int
+    rigorous_spaces: bool
 
 
 class GameState:
@@ -243,28 +253,24 @@ class Game:
         self,
         loop: asyncio.events.AbstractEventLoop,
         input_handler: TerminalInputHandler,
-        corpus: list[str],
-        max_time: int,
-        rigorous_spaces: bool,
+        settings: GameSettings,
     ) -> None:
         """Initialize self.
 
         :param loop: the event loop.
         :param input_handler: input handler instance.
-        :param corpus: list of words to choose the game words from.
-        :param max_time: maximum time to run the game.
-        :param rigorous_spaces: whether a bad space means a mistake.
+        :param settings: game settings.
         """
-        self.max_time = max_time
-        self.all_words = [random.choice(corpus) for _i in range(SAMPLE_SIZE)]
-        self.rigorous_spaces = rigorous_spaces
-
         self.loop = loop
         self.input_handler = input_handler
+        self.settings = settings
 
     async def run(self) -> None:
         """Run the game."""
-        state = GameState(self.all_words, self.max_time)
+        all_words = [
+            random.choice(self.settings.corpus) for _i in range(SAMPLE_SIZE)
+        ]
+        state = GameState(all_words, self.settings.max_time)
 
         async def timer() -> None:
             while not state.is_finished:
@@ -295,7 +301,7 @@ class Game:
             elif key in "\x17":
                 state.word_backspace_pressed()
             elif re.match(r"\s", key):
-                if state.word_input != "" or self.rigorous_spaces:
+                if state.word_input != "" or self.settings.rigorous_spaces:
                     state.word_finished()
             elif len(key) > 1 or ord(key) >= 32:
                 state.key_pressed(key)
