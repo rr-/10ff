@@ -1,9 +1,16 @@
+"""Miscellaneous utility functions."""
 from pathlib import Path
 
 CORPORA_PATH = Path(__file__).parent / "data"
 
 
 def get_corpus_path(corpus: str) -> Path:
+    """Get path to the given corpus name. If the name does not resolve to a
+    built-in corpus, treat it as a direct path.
+
+    :param corpus: the corpus name.
+    :return: path to the corpus with the given name or path.
+    """
     corpus_path = CORPORA_PATH / (corpus + ".txt")
     if corpus_path.exists():
         return corpus_path
@@ -11,15 +18,19 @@ def get_corpus_path(corpus: str) -> Path:
 
 
 def divide_lines(words: list[str], max_columns: int) -> list[tuple[int, int]]:
+    """Divide words into lines.
+
+    :param max_columns: maximum columns that can fit in a single line.
+    :return: list of lines with indices of the input text.
+    """
     lines = []
-    current_line = ""
     words_left = words[:]
     while len(words_left):
         current_line = ""
         low = len(words) - len(words_left)
         while len(words_left):
             word = words_left[0]
-            new_line = (current_line + " " + word).strip()
+            new_line = " ".join((current_line, word)).strip()
             if len(new_line) >= max_columns:
                 break
             words_left = words_left[1:]

@@ -1,6 +1,6 @@
+"""Main executable."""
 import argparse
 import asyncio
-import typing as T
 
 from tenff.game import Game
 from tenff.util import CORPORA_PATH, get_corpus_path
@@ -13,7 +13,21 @@ PROLOG = (
 
 
 class CustomHelpFormatter(argparse.HelpFormatter):
+    """A HelpFormatter that uses concise syntax for short and long options
+    help.
+    """
+
     def _format_action_invocation(self, action: argparse.Action) -> str:
+        """Format action invocation.
+
+        Example of the default argparse formatting:
+
+            -c CORPUS, --corpus CORPUS
+
+        Example of the concise formatting:
+
+            -c, --corpus CORPUS
+        """
         if not action.option_strings or action.nargs == 0:
             return super()._format_action_invocation(action)
         default = self._get_default_metavar_for_optional(action)
@@ -22,9 +36,9 @@ class CustomHelpFormatter(argparse.HelpFormatter):
 
 
 def parse_args() -> argparse.Namespace:
-    fmt = lambda prog: CustomHelpFormatter(prog)
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        prog="10ff", description=PROLOG, formatter_class=fmt
+        prog="10ff", description=PROLOG, formatter_class=CustomHelpFormatter
     )
     parser.add_argument(
         "-t",
@@ -54,12 +68,15 @@ def parse_args() -> argparse.Namespace:
         "-r",
         "--rigorous-spaces",
         action="store_true",
-        help="treat double space as error",
+        help="treat double space as an error",
     )
     return parser.parse_args()
 
 
 def main() -> None:
+    """Main program logic. Start the event loop, parse the CLI arguments and
+    run the game.
+    """
     loop = asyncio.get_event_loop()
     args = parse_args()
 
