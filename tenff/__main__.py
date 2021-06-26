@@ -44,7 +44,7 @@ def parse_args():
         "--width",
         type=int,
         default=80,
-        help="with of the terminal to play in",
+        help="width of the terminal to play in",
     )
     parser.add_argument(
         "-l", "--list", action="store_true", help="lists the built-in corpora"
