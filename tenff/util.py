@@ -3,14 +3,14 @@ from pathlib import Path
 CORPORA_PATH = Path(__file__).parent / "data"
 
 
-def get_corpus_path(corpus):
+def get_corpus_path(corpus: str) -> Path:
     corpus_path = CORPORA_PATH / (corpus + ".txt")
     if corpus_path.exists():
         return corpus_path
     return Path(corpus)
 
 
-def divide_lines(words, max_columns):
+def divide_lines(words: list[str], max_columns: int) -> list[tuple[int, int]]:
     lines = []
     current_line = ""
     words_left = words[:]

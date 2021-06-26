@@ -3,6 +3,8 @@ import random
 import re
 import shutil
 import time
+import typing as T
+from pathlib import Path
 
 from tenff.raw_terminal import RawTerminal
 from tenff.util import divide_lines
@@ -20,40 +22,40 @@ STATUS_TYPED_WRONG = 4
 
 
 class GameState:
-    def __init__(self, words, max_time):
+    def __init__(self, words: list[str], max_time: int) -> None:
         self._words = words
         self._current_word = 0
         self._text_input = ""
         self._status = [STATUS_TYPING_WELL] + [
-            STATUS_UNTYPED for _ in words[1:]
+            STATUS_UNTYPED for _word in words[1:]
         ]
         self._line_boundaries = divide_lines(words, MAX_COLUMNS)
         self._time_left = max_time
         self._start_time = time.time()
-        self._end_time = None
+        self._end_time: T.Optional[float] = None
         self._keys_pressed = 0
         self._current_word_keys_pressed = 0
         self._first_render = True
 
     @property
-    def finished(self):
+    def finished(self) -> bool:
         return self._end_time is not None
 
     @property
-    def _current_line(self):
+    def _current_line(self) -> int:
         for i, (low, high) in enumerate(self._line_boundaries):
             if self._current_word in range(low, high):
                 return i
         return len(self._line_boundaries) - 1
 
     @property
-    def _shown_line_boundaries(self):
+    def _shown_line_boundaries(self) -> T.Iterable[tuple[int, int]]:
         current = self._current_line
         for i in range(MAX_LINES):
             if current + i in range(len(self._line_boundaries)):
                 yield self._line_boundaries[current + i]
 
-    def render(self):
+    def render(self) -> None:
         shown_line_boundaries = list(self._shown_line_boundaries)
         if not self._first_render:
             RawTerminal.move_cursor_up(MAX_LINES + 1)
@@ -82,7 +84,7 @@ class GameState:
         RawTerminal.erase_whole_line()
         print(self._text_input, end="", flush=True)
 
-    def render_stats(self):
+    def render_stats(self) -> None:
         correct_words = [
             word
             for word, status in zip(self._words, self._status)
@@ -97,7 +99,10 @@ class GameState:
         wrong_characters = sum(len(word) + 1 for word in wrong_words)
         total_characters = correct_characters + wrong_characters
 
-        cps = correct_characters / (self._end_time - self._start_time)
+        if self._end_time is None:
+            cps = 0.0
+        else:
+            cps = correct_characters / (self._end_time - self._start_time)
         wpm = cps * 60.0 / WORD_LENGTH
         accuracy = (
             correct_characters / self._keys_pressed
@@ -133,25 +138,25 @@ class GameState:
         RawTerminal.set_default_font()
         print()
 
-    def started(self):
+    def started(self) -> None:
         self._start_time = time.time()
 
-    def backspace_pressed(self):
+    def backspace_pressed(self) -> None:
         self._text_input = self._text_input[:-1]
         self._current_word_keys_pressed += 1
         self._update_typing_status()
 
-    def word_backspace_pressed(self):
+    def word_backspace_pressed(self) -> None:
         self._text_input = ""
         self._current_word_keys_pressed += 1
         self._update_typing_status()
 
-    def key_pressed(self, key):
+    def key_pressed(self, key: str) -> None:
         self._text_input += key
         self._current_word_keys_pressed += 1
         self._update_typing_status()
 
-    def word_finished(self):
+    def word_finished(self) -> None:
         self._keys_pressed += self._current_word_keys_pressed + 1
         self._current_word_keys_pressed = 0
         self._status[self._current_word] = (
@@ -168,15 +173,15 @@ class GameState:
 
         self._status[self._current_word] = STATUS_TYPING_WELL
 
-    def finish(self):
+    def finish(self) -> None:
         self._end_time = time.time()
 
-    def tick(self):
+    def tick(self) -> None:
         self._time_left -= 1
         if self._time_left == 0:
             self.finish()
 
-    def _update_typing_status(self):
+    def _update_typing_status(self) -> None:
         self._status[self._current_word] = (
             STATUS_TYPING_WELL
             if self._words[self._current_word].startswith(self._text_input)
@@ -185,7 +190,13 @@ class GameState:
 
 
 class Game:
-    def __init__(self, loop, corpus_path, max_time, rigorous_spaces):
+    def __init__(
+        self,
+        loop: asyncio.events.AbstractEventLoop,
+        corpus_path: Path,
+        max_time: int,
+        rigorous_spaces: bool,
+    ) -> None:
         corpus = [
             word
             for word in re.split(
@@ -195,17 +206,17 @@ class Game:
         ]
 
         self._max_time = max_time
-        self._text = [random.choice(corpus) for _ in range(SAMPLE_SIZE)]
+        self._all_words = [random.choice(corpus) for _i in range(SAMPLE_SIZE)]
         self._rigorous_spaces = rigorous_spaces
 
         self._loop = loop
         self._raw_terminal = RawTerminal(loop)
         self._raw_terminal.enable()
 
-    async def run(self):
-        state = GameState(self._text, self._max_time)
+    async def run(self) -> None:
+        state = GameState(self._all_words, self._max_time)
 
-        async def timer():
+        async def timer() -> None:
             while not state.finished:
                 await asyncio.sleep(0.5)
                 await asyncio.sleep(0.5)
@@ -215,7 +226,7 @@ class Game:
                 self._raw_terminal.enable()
             await self._raw_terminal.input_queue.put(None)
 
-        timer_future = None
+        timer_future: T.Optional[T.Awaitable[T.Any]] = None
 
         while not state.finished:
             self._raw_terminal.disable()
@@ -243,6 +254,7 @@ class Game:
             elif len(key) > 1 or ord(key) >= 32:
                 state.key_pressed(key)
 
+        assert timer_future is not None
         await timer_future
         self._raw_terminal.disable()
         state.render_stats()

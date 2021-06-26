@@ -25,8 +25,8 @@ def dl_10fastfingers_lang(
         file=sys.stderr,
     )
 
-    words: T.Set[str] = set()
-    last_sizes: T.List[int] = []
+    words: set[str] = set()
+    last_sizes: list[int] = []
     while True:
         response = requests.post(
             "https://10fastfingers.com/speedtests/get_words",
@@ -52,9 +52,9 @@ def dl_10fastfingers_lang(
     write_words(lang + "-advanced" if advanced else lang, sorted(words))
 
 
-def get_10fastfinger_langs() -> T.Dict[int, str]:
+def get_10fastfinger_langs() -> dict[int, str]:
     print("downloading 10fastfingers language definitions...", file=sys.stderr)
-    languages: T.Dicst[int, str] = {}
+    languages: dict[int, str] = {}
     response = requests.get("https://10fastfingers.com/typing-test/english")
     response.raise_for_status()
     doc = lxml.html.fromstring(response.text)

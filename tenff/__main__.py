@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import typing as T
 
 from tenff.game import Game
 from tenff.util import CORPORA_PATH, get_corpus_path
@@ -12,7 +13,7 @@ PROLOG = (
 
 
 class CustomHelpFormatter(argparse.HelpFormatter):
-    def _format_action_invocation(self, action):
+    def _format_action_invocation(self, action: argparse.Action) -> str:
         if not action.option_strings or action.nargs == 0:
             return super()._format_action_invocation(action)
         default = self._get_default_metavar_for_optional(action)
@@ -20,7 +21,7 @@ class CustomHelpFormatter(argparse.HelpFormatter):
         return ", ".join(action.option_strings) + " " + args_string
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     fmt = lambda prog: CustomHelpFormatter(prog)
     parser = argparse.ArgumentParser(
         prog="10ff", description=PROLOG, formatter_class=fmt
@@ -58,7 +59,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
+def main() -> None:
     loop = asyncio.get_event_loop()
     args = parse_args()
 
