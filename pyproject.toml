@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "tenff"
+version = "0.1"
+description = "A certain typing contest site spin-off in CLI"
+authors = ["Marcin Kurczewski <rr-@sakuya.pl>"]
+license = "WTFPL"
+readme = "README.md"
+repository = "https://github.com/rr-/10ff"
+packages = [
+    { include = "tenff" },
+]
+include = ["tenff/data/*.*"]
+
+[tool.poetry.scripts]
+10ff = 'tenff.__main__:main'
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+
+[tool.poetry.dev-dependencies]
+pre-commit = "^2.16.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 79
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
