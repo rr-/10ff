@@ -57,7 +57,7 @@ class TerminalInputHandler:
         self.loop = loop
         self.old_settings: T.Optional[T.List[T.Any]] = None
 
-        self.input_queue: asyncio.Queue[str] = asyncio.Queue(loop=loop)
+        self.input_queue: asyncio.Queue[str] = asyncio.Queue()
         loop.add_reader(sys.stdin, self.got_input)
 
     @contextlib.contextmanager

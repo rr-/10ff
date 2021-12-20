@@ -78,7 +78,7 @@ def main() -> None:
     """Main program logic. Start the event loop, parse the CLI arguments and
     run the game.
     """
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
     args = parse_args()
 
     if args.list:
