@@ -11,9 +11,7 @@ tracking and 10 megabytes of AJAX crap.
 #### Installation
 
 ```
-git clone https://github.com/rr-/10ff
-cd 10ff
-pip install --user .
+pip install tenff
 10ff
 ```
 
